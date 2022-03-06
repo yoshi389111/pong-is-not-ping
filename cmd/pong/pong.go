@@ -22,7 +22,13 @@ const (
 	TERM_HEIGHT_MIN = 15
 )
 
-type Status struct {
+type PongResult struct {
+	received bool
+	ttl      int
+	time     int
+}
+
+type GameInfo struct {
 	width      int
 	height     int
 	top        int
@@ -30,15 +36,10 @@ type Status struct {
 	packetData string
 	enemy      PongObject
 	user       PongObject
+	results    []PongResult
 }
 
-var status = Status{}
-
-type PongResult struct {
-	received bool
-	ttl      int
-	time     int
-}
+var g = GameInfo{}
 
 func timerEventLoop(tch chan bool) {
 	for {
@@ -58,18 +59,18 @@ func keyEventLoop(kch chan termbox.Key) {
 }
 
 func drawString(x, y int, str string) {
-	for i, r := range []rune(str) {
-		termbox.SetCell(x+i, y, r, termbox.ColorDefault, termbox.ColorDefault)
+	for i, ch := range []rune(str) {
+		termbox.SetCell(x+i, y, ch, termbox.ColorDefault, termbox.ColorDefault)
 	}
 }
 
 func (o *PongObject) draw() {
-	runes := []rune(o.Str())
+	runes := []rune(o.str)
 	size := len(runes)
-	x := o.Point().X
-	y := o.Point().Y
-	width := o.Size().Width
-	height := o.Size().Height
+	x := o.point.X
+	y := o.point.Y
+	width := o.size.Width
+	height := o.size.Height
 	for h := 0; h < height; h++ {
 		for w := 0; w < width; w++ {
 			ch := runes[(h*width+w)%size]
@@ -79,10 +80,10 @@ func (o *PongObject) draw() {
 }
 
 func (o *BallObject) draw() {
-	shadows := o.Shadows()
+	shadows := o.shadows
 	for i := len(shadows) - 1; 0 <= i; i -= 1 {
 		shadow := shadows[i]
-		termbox.SetCell(shadow.Point().X, shadow.Point().Y, shadow.Char(),
+		termbox.SetCell(shadow.point.X, shadow.point.Y, shadow.ch,
 			termbox.ColorDefault, termbox.ColorDefault)
 	}
 }
@@ -92,7 +93,7 @@ func (o *BallObject) reflectPaddle(paddle *PongObject) {
 
 	dx := -o.vectorF.Dx
 	var dy float32
-	switch ballY - paddle.Point().Y {
+	switch ballY - paddle.point.Y {
 	case -1:
 		dy = -1
 	case 0:
@@ -109,24 +110,24 @@ func (o *BallObject) reflectPaddle(paddle *PongObject) {
 
 	var ballX int
 	if dx < 0 {
-		ballX = paddle.Point().X - 1
+		ballX = paddle.point.X - 1
 	} else {
-		ballX = paddle.Point().X + paddle.Size().Width
+		ballX = paddle.point.X + paddle.size.Width
 	}
 	o.Set(ballX, ballY, dx, dy)
 }
 
 func (o *BallObject) reflectWall(wall *PongObject) {
-	point := o.shadows[0].point
+	point := o.Point()
 	if o.vectorF.Dy < 0 {
-		o.Set(point.X, wall.Point().Y+wall.Size().Height, o.vectorF.Dx, -o.vectorF.Dy)
+		o.Set(point.X, wall.point.Y+wall.size.Height, o.vectorF.Dx, -o.vectorF.Dy)
 	} else {
-		o.Set(point.X, wall.Point().Y-1, o.vectorF.Dx, -o.vectorF.Dy)
+		o.Set(point.X, wall.point.Y-1, o.vectorF.Dx, -o.vectorF.Dy)
 	}
 }
 
 func newBall() BallObject {
-	y := rand.Intn(status.height/3) + status.height/3
+	y := rand.Intn(g.height/3) + g.height/3
 	var dy float32
 	switch rand.Intn(4) {
 	case 0:
@@ -138,41 +139,42 @@ func newBall() BallObject {
 	default:
 		dy = 0.5
 	}
-	return NewBallObject(6, y, 1, dy, status.packetData)
+	return NewBallObject(6, y, 1, dy, g.packetData)
 }
 
 func moveEnemy(ball *BallObject) {
-	ballDx := ball.VectorF().Dx
+	ballDx := ball.vectorF.Dx
 	ballPoint := ball.Point()
 
-	enemyY := status.enemy.Point().Y + status.enemy.Size().Height/2
+	enemyY := g.enemy.point.Y + g.enemy.size.Height/2
 
 	var bestY int
-	if ballDx < 0 && ballPoint.X < status.width/2 {
+	if ballDx < 0 && ballPoint.X < g.width/2 {
 		bestY = ballPoint.Y
 	} else if rand.Intn(2) == 1 {
 		ballY := ballPoint.Y
-		selfY := status.user.Point().Y + status.user.Size().Height/2
+		selfY := g.user.point.Y + g.user.size.Height/2
 		bestY = (selfY + ballY) / 2
 	} else {
 		return
 	}
 
-	if bestY < enemyY && status.top+1 < status.enemy.Point().Y {
-		status.enemy.Move(0, -1)
-	} else if enemyY < bestY && status.enemy.Point().Y+status.enemy.Size().Height < status.bottom {
-		status.enemy.Move(0, 1)
+	if bestY < enemyY && g.top+1 < g.enemy.point.Y {
+		g.enemy.Move(0, -1)
+	} else if enemyY < bestY && g.enemy.point.Y+g.enemy.size.Height < g.bottom {
+		g.enemy.Move(0, 1)
 	}
 }
 
+// play(one point). return (PongResult, isBreak)
 func play(kch chan termbox.Key, tch chan bool, seq int) (*PongResult, bool) {
 
 	message := fmt.Sprintf("start icmp_seq=%d", seq)
-	messageLabel := NewPongObject((status.width-len(message))/2, status.height/2, len(message), 1, message)
-	topWall := NewPongObject(0, status.top, status.width, 1, "=")
-	bottomWall := NewPongObject(0, status.bottom, status.width, 1, "=")
-	leftWall := NewPongObject(0, status.top+1, 1, status.bottom-status.top-1, "|")
-	localhostLabel := NewPongObject(0, (status.height-11)/2, 1, 11, " localhost ")
+	messageLabel := NewPongObject((g.width-len(message))/2, g.height/2, len(message), 1, message)
+	topWall := NewPongObject(0, g.top, g.width, 1, "=")
+	bottomWall := NewPongObject(0, g.bottom, g.width, 1, "=")
+	leftWall := NewPongObject(0, g.top+1, 1, g.bottom-g.top-1, "|")
+	localhostLabel := NewPongObject(0, (g.height-11)/2, 1, 11, " localhost ")
 	ball := newBall()
 
 	ballWaitMax := BALL_WAIT_INIT
@@ -189,29 +191,30 @@ func play(kch chan termbox.Key, tch chan bool, seq int) (*PongResult, bool) {
 		bottomWall.draw()
 		leftWall.draw()
 		localhostLabel.draw()
-		status.enemy.draw()
-		status.user.draw()
+		g.enemy.draw()
+		g.user.draw()
 		if msgWaitTimes == 0 {
 			ball.draw()
 		} else {
 			messageLabel.draw()
 		}
 
-		drawString(status.width-20, 0, fmt.Sprintf("icmp_seq=%d ttl=%d ", seq, ttl))
+		descLabel := fmt.Sprintf("icmp_seq=%d ttl=%d", seq, ttl)
+		drawString(g.width-len(descLabel)-2, 0, descLabel)
 		termbox.Flush()
 
 		select {
 		case key := <-kch:
 			switch key {
-			case termbox.KeyEsc, termbox.KeyCtrlC:
-				return nil, true // game end
-			case termbox.KeyArrowUp: // UP
-				if status.top+1 < status.user.Point().Y {
-					status.user.Move(0, -1)
+			case termbox.KeyCtrlC:
+				return nil, true
+			case termbox.KeyArrowUp:
+				if g.top+1 < g.user.point.Y {
+					g.user.Move(0, -1)
 				}
-			case termbox.KeyArrowDown: // DOWN
-				if status.user.Point().Y+status.user.Size().Height < status.bottom {
-					status.user.Move(0, 1)
+			case termbox.KeyArrowDown:
+				if g.user.point.Y+g.user.size.Height < g.bottom {
+					g.user.Move(0, 1)
 				}
 			}
 		case <-tch:
@@ -238,15 +241,15 @@ func play(kch chan termbox.Key, tch chan bool, seq int) (*PongResult, bool) {
 				if bottomWall.Collision(ball.Point()) {
 					ball.reflectWall(&bottomWall)
 				}
-				if status.user.Collision(ball.Point()) {
-					ball.reflectPaddle(&status.user)
+				if g.user.Collision(ball.Point()) {
+					ball.reflectPaddle(&g.user)
 					if 1 < ballWaitMax && rand.Intn(2) == 1 {
 						// speed up
 						ballWaitMax -= 1
 					}
 				}
-				if status.enemy.Collision(ball.Point()) {
-					ball.reflectPaddle(&status.enemy)
+				if g.enemy.Collision(ball.Point()) {
+					ball.reflectPaddle(&g.enemy)
 					ttl -= 1
 					if ttl <= 0 {
 						return &PongResult{}, false
@@ -258,12 +261,12 @@ func play(kch chan termbox.Key, tch chan bool, seq int) (*PongResult, bool) {
 				if bottomWall.Collision(ball.Point()) {
 					ball.reflectWall(&bottomWall)
 				}
-				if ball.Point().X < 1 {
+				ballX := ball.Point().X
+				if ballX < 1 {
 					// win
 					time := int(time.Since(startTiem) / time.Second)
 					return &PongResult{true, ttl, time}, false
-				}
-				if status.width-1 <= ball.Point().X {
+				} else if g.width-1 <= ballX {
 					// lose
 					return &PongResult{}, false
 				}
@@ -272,26 +275,25 @@ func play(kch chan termbox.Key, tch chan bool, seq int) (*PongResult, bool) {
 	}
 }
 
-func game() ([]PongResult, bool, error) {
+// play game. return (isBreak, error)
+func game() (bool, error) {
 	err := termbox.Init()
 	if err != nil {
-		return nil, false, err
+		return false, err
 	}
 	defer termbox.Close()
 	termbox.HideCursor()
 
-	status.width, status.height = termbox.Size()
-	if status.width < TERM_WIDTH_MIN || status.height < TERM_HEIGHT_MIN {
-		return nil, false, fmt.Errorf("This term(%dx%d) is too narrow. Requires %dx%d area",
-			status.width, status.height, TERM_WIDTH_MIN, TERM_HEIGHT_MIN)
+	g.width, g.height = termbox.Size()
+	if g.width < TERM_WIDTH_MIN || g.height < TERM_HEIGHT_MIN {
+		return false, fmt.Errorf("This term(%dx%d) is too narrow. Requires %dx%d area",
+			g.width, g.height, TERM_WIDTH_MIN, TERM_HEIGHT_MIN)
 	}
-	status.top = 1
-	status.bottom = status.height - 2
+	g.top = 1
+	g.bottom = g.height - 2
 
-	status.enemy = NewPongObject(3, status.height/2-PADDLE_HEIGHT/2, PADDLE_WIDTH, PADDLE_HEIGHT, "||G|W|||")
-	status.user = NewPongObject(status.width-4, status.height/2-PADDLE_HEIGHT/2, PADDLE_WIDTH, PADDLE_HEIGHT, "|")
-
-	results := make([]PongResult, 0, opts.Count)
+	g.enemy = NewPongObject(3, g.height/2-PADDLE_HEIGHT/2, PADDLE_WIDTH, PADDLE_HEIGHT, "||G|W|||")
+	g.user = NewPongObject(g.width-4, g.height/2-PADDLE_HEIGHT/2, PADDLE_WIDTH, PADDLE_HEIGHT, "|")
 
 	kch := make(chan termbox.Key)
 	tch := make(chan bool)
@@ -300,15 +302,15 @@ func game() ([]PongResult, bool, error) {
 
 	for i := 0; i < opts.Count; i += 1 {
 		seq := i + 1
-		result, isEnd := play(kch, tch, seq)
-		if isEnd {
-			return results, true, nil
+		result, isBreak := play(kch, tch, seq)
+		if isBreak {
+			return true, nil
 		}
-		results = append(results, *result)
+		g.results = append(g.results, *result)
 	}
 
 	// termbox.Clear(termbox.ColorDefault, termbox.ColorDefault)
-	return results, false, nil
+	return false, nil
 }
 
 // main of pong
@@ -322,16 +324,18 @@ func pong() {
 	}
 
 	if len(opts.Padding) != 0 {
-		status.packetData = PACKET_HEADER + ":" + opts.Padding
+		g.packetData = PACKET_HEADER + ":" + opts.Padding
 	} else {
-		status.packetData = PACKET_HEADER
+		g.packetData = PACKET_HEADER
 	}
-	size := len(status.packetData)
+	size := len(g.packetData)
+
+	g.results = make([]PongResult, 0, opts.Count)
 
 	startTiem := time.Now()
 
 	// start pong
-	results, isBrake, err := game()
+	isBrake, err := game()
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
@@ -339,7 +343,7 @@ func pong() {
 
 	time := time.Since(startTiem) / time.Second
 
-	totalPackets := len(results)
+	totalPackets := len(g.results)
 	if totalPackets == 0 {
 		if isBrake {
 			fmt.Println("^C")
@@ -349,14 +353,14 @@ func pong() {
 
 	// show results
 	fmt.Printf("PONG %s(%s) %d bytes of data.\n", opts.Args.Destination, addr, size)
-	for i, r := range results {
+	for i, r := range g.results {
 		if r.received {
-			fmt.Printf("%d bytes from %s(%s): icmp_seq=%d ttl=%d time=%d sec\n",
-				size, opts.Args.Destination, addr,
+			fmt.Printf("%d bytes from %s: icmp_seq=%d ttl=%d time=%d sec\n",
+				size, opts.Args.Destination,
 				i+1, r.ttl, r.time)
 		} else {
-			fmt.Printf("%d bytes from %s(%s): request timed out\n",
-				size, opts.Args.Destination, addr)
+			fmt.Printf("%d bytes from %s: request timed out\n",
+				size, opts.Args.Destination)
 		}
 	}
 	if isBrake {
@@ -364,7 +368,7 @@ func pong() {
 	}
 	fmt.Printf("--- %s pong statistics ---\n", opts.Args.Destination)
 	nRecv := 0
-	for _, r := range results {
+	for _, r := range g.results {
 		if r.received {
 			nRecv++
 		}

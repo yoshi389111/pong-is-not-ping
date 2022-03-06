@@ -26,20 +26,12 @@ type PongObject struct {
 	str   string
 }
 
-func NewPongObject(x, y, w, h int, s string) PongObject {
+func NewPongObject(x, y, w, h int, str string) PongObject {
 	return PongObject{
-		point: Point{X: x, Y: y},
-		size:  Size{Width: w, Height: h},
-		str:   s,
+		point: Point{x, y},
+		size:  Size{w, h},
+		str:   str,
 	}
-}
-
-func (o *PongObject) Point() Point {
-	return o.point
-}
-
-func (o *PongObject) Size() Size {
-	return o.size
 }
 
 func (o *PongObject) Move(dx, dy int) {
@@ -52,21 +44,9 @@ func (o *PongObject) Collision(p Point) bool {
 		o.point.Y <= p.Y && p.Y < o.point.Y+o.size.Height)
 }
 
-func (o *PongObject) Str() string {
-	return o.str
-}
-
 type Shadow struct {
 	point Point
 	ch    rune
-}
-
-func (o *Shadow) Point() Point {
-	return o.point
-}
-
-func (o *Shadow) Char() rune {
-	return o.ch
 }
 
 type BallObject struct {
@@ -75,14 +55,14 @@ type BallObject struct {
 	shadows []Shadow
 }
 
-func NewBallObject(x, y int, dx, dy float32, s string) BallObject {
-	shadows := make([]Shadow, 0, len(s))
-	for _, r := range []rune(s) {
-		shadows = append(shadows, Shadow{Point{x, y}, r})
+func NewBallObject(x, y int, dx, dy float32, str string) BallObject {
+	shadows := make([]Shadow, 0, len(str))
+	for _, ch := range []rune(str) {
+		shadows = append(shadows, Shadow{Point{x, y}, ch})
 	}
 	return BallObject{
-		pointF:  BallPoint{X: float32(x), Y: float32(y)},
-		vectorF: BallVector{Dx: dx, Dy: dy},
+		pointF:  BallPoint{float32(x), float32(y)},
+		vectorF: BallVector{dx, dy},
 		shadows: shadows,
 	}
 }
@@ -98,20 +78,12 @@ func (o *BallObject) Next() {
 	o.shadows[0].point.Y = int(o.pointF.Y)
 }
 
-func (o *BallObject) VectorF() BallVector {
-	return o.vectorF
-}
-
-func (o *BallObject) Shadows() []Shadow {
-	return o.shadows
-}
-
 func (o *BallObject) Point() Point {
 	return o.shadows[0].point
 }
 
 func (o *BallObject) Set(x, y int, dx, dy float32) {
-	o.pointF = BallPoint{X: float32(x), Y: float32(y)}
-	o.vectorF = BallVector{Dx: dx, Dy: dy}
+	o.pointF = BallPoint{float32(x), float32(y)}
+	o.vectorF = BallVector{dx, dy}
 	o.shadows[0].point = Point{x, y}
 }
