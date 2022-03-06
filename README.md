@@ -9,7 +9,7 @@ Inspired by [kurehajime/pong-command](https://github.com/kurehajime/pong-command
 ## Installation
 
 ```
-go install github.com/yoshi389111/pong-is-not-ping
+go install github.com/yoshi389111/pong-is-not-ping/cmd/pong@latest
 ```
 
 ## Usage
