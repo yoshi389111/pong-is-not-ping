@@ -6,6 +6,8 @@ Pong is not ping.
 
 Inspired by [kurehajime/pong-command](https://github.com/kurehajime/pong-command)
 
+![](./docs/pong.gif)
+
 ## Installation
 
 ```
