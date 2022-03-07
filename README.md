@@ -2,7 +2,7 @@
 
 This command is pong game.
 
-Pong is not ping.
+**PO**ng is **N**ot pin**G**.
 
 Inspired by [kurehajime/pong-command](https://github.com/kurehajime/pong-command)
 
