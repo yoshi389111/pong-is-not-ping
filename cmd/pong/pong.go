@@ -12,7 +12,7 @@ import (
 
 const (
 	TIME_SPAN       = 10  // [ms]
-	BALL_WAIT_INIT  = 9   // 90 [ms] = 9 * TIME_SPAN
+	BALL_WAIT_MAX   = 9   // 90 [ms] = 9 * TIME_SPAN
 	ENEMY_WAIT_MAX  = 8   // 70 [ms]
 	MESSAGE_WAIT    = 150 // 1500 [ms]
 	PACKET_HEADER   = "ICMP ECHO"
@@ -177,10 +177,10 @@ func play(kch chan termbox.Key, tch chan bool, seq int) (*PongResult, bool) {
 	localhostLabel := NewPongObject(0, (g.height-11)/2, 1, 11, " localhost ")
 	ball := newBall()
 
-	ballWaitMax := BALL_WAIT_INIT
-	ballWaitTimes := ballWaitMax
-	enemyWaitTimes := ENEMY_WAIT_MAX
-	msgWaitTimes := MESSAGE_WAIT
+	ballSpeed := 0
+	ballWait := BALL_WAIT_MAX
+	enemyWait := ENEMY_WAIT_MAX
+	msgWait := MESSAGE_WAIT
 
 	ttl := opts.TimeToLive
 	startTiem := time.Now()
@@ -193,7 +193,7 @@ func play(kch chan termbox.Key, tch chan bool, seq int) (*PongResult, bool) {
 		localhostLabel.draw()
 		g.enemy.draw()
 		g.user.draw()
-		if msgWaitTimes == 0 {
+		if msgWait == 0 {
 			ball.draw()
 		} else {
 			messageLabel.draw()
@@ -218,21 +218,20 @@ func play(kch chan termbox.Key, tch chan bool, seq int) (*PongResult, bool) {
 				}
 			}
 		case <-tch:
-
-			if 0 < msgWaitTimes {
-				msgWaitTimes -= 1
+			if 0 < msgWait {
+				msgWait--
 				continue
 			}
 
-			enemyWaitTimes--
-			if enemyWaitTimes < 0 {
-				enemyWaitTimes = ENEMY_WAIT_MAX
+			enemyWait--
+			if enemyWait < 0 {
+				enemyWait = ENEMY_WAIT_MAX
 				moveEnemy(&ball)
 			}
 
-			ballWaitTimes--
-			if ballWaitTimes < 0 {
-				ballWaitTimes = ballWaitMax
+			ballWait--
+			if ballWait < 0 {
+				ballWait = BALL_WAIT_MAX - ballSpeed
 				ball.Next()
 
 				if topWall.Collision(ball.Point()) {
@@ -243,14 +242,14 @@ func play(kch chan termbox.Key, tch chan bool, seq int) (*PongResult, bool) {
 				}
 				if g.user.Collision(ball.Point()) {
 					ball.reflectPaddle(&g.user)
-					if 1 < ballWaitMax && rand.Intn(2) == 1 {
+					if ballSpeed < BALL_WAIT_MAX && rand.Intn(2) == 1 {
 						// speed up
-						ballWaitMax -= 1
+						ballSpeed++
 					}
 				}
 				if g.enemy.Collision(ball.Point()) {
 					ball.reflectPaddle(&g.enemy)
-					ttl -= 1
+					ttl--
 					if ttl <= 0 {
 						return &PongResult{}, false
 					}
@@ -309,7 +308,6 @@ func game() (bool, error) {
 		g.results = append(g.results, *result)
 	}
 
-	// termbox.Clear(termbox.ColorDefault, termbox.ColorDefault)
 	return false, nil
 }
 
@@ -328,7 +326,7 @@ func pong() {
 	} else {
 		g.packetData = PACKET_HEADER
 	}
-	size := len(g.packetData)
+	packetLen := len(g.packetData)
 
 	g.results = make([]PongResult, 0, opts.Count)
 
@@ -343,37 +341,37 @@ func pong() {
 
 	time := time.Since(startTiem) / time.Second
 
-	totalPackets := len(g.results)
-	if totalPackets == 0 {
+	nTotal := len(g.results)
+	if nTotal == 0 {
 		if isBrake {
 			fmt.Println("^C")
 		}
 		return
 	}
-
-	// show results
-	fmt.Printf("PONG %s(%s) %d bytes of data.\n", opts.Args.Destination, addr, size)
-	for i, r := range g.results {
-		if r.received {
-			fmt.Printf("%d bytes from %s: icmp_seq=%d ttl=%d time=%d sec\n",
-				size, opts.Args.Destination,
-				i+1, r.ttl, r.time)
-		} else {
-			fmt.Printf("%d bytes from %s: request timed out\n",
-				size, opts.Args.Destination)
-		}
-	}
-	if isBrake {
-		fmt.Println("^C")
-	}
-	fmt.Printf("--- %s pong statistics ---\n", opts.Args.Destination)
 	nRecv := 0
 	for _, r := range g.results {
 		if r.received {
 			nRecv++
 		}
 	}
-	lossRatio := 100 - nRecv*100/totalPackets
+
+	// show results
+	fmt.Printf("PONG %s(%s) %d bytes of data.\n", opts.Args.Destination, addr, packetLen)
+	for i, r := range g.results {
+		if r.received {
+			fmt.Printf("%d bytes from %s: icmp_seq=%d ttl=%d time=%d sec\n",
+				packetLen, opts.Args.Destination,
+				i+1, r.ttl, r.time)
+		} else {
+			fmt.Printf("%d bytes from %s: request timed out\n",
+				packetLen, opts.Args.Destination)
+		}
+	}
+	if isBrake {
+		fmt.Println("^C")
+	}
+	fmt.Printf("--- %s pong statistics ---\n", opts.Args.Destination)
+	lossRatio := 100 - nRecv*100/nTotal
 	fmt.Printf("%d packets transmitted, %d received, %d%% packet loss, time %d sec\n",
-		totalPackets, nRecv, lossRatio, time)
+		nTotal, nRecv, lossRatio, time)
 }
