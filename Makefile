@@ -5,7 +5,7 @@ VERSION = $(VER)-$(DATE)-$(HASH)-mf
 #VERSION = 0.0.1
 
 pong:
-	go build -ldflags '-X "main.version=$(VERSION)"' ./cmd/pong
+	go build -ldflags '-X "main.version=$(VERSION)"' ./src
 
 clean:
 	rm -f pong
