@@ -48,6 +48,4 @@ linux64:
 	go build $(GOFLAGS) -o bin/pong-linux-amd64-$(VERSION) $(TARGET)
 
 clean:
-	printf "IGNORE ANY THROWN ERRORS...\n"
-	rm -f ./bin/
-	del ./bin/ -Force
+	rm -rf ./bin
