@@ -1,0 +1,8 @@
+# SPDX-License-Identifier: MIT
+# Author: Mark Gutenberger <mark-gutenberger@outlook.com>
+# .gitignore (c) 2022
+# Desc: .gitignore
+# Created:  2022-03-09T02:37:20.324Z
+# Modified: 2022-03-09T02:37:44.487Z
+
+bin/
