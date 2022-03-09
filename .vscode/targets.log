@@ -1,0 +1,332 @@
+make.exe all --print-data-base --no-builtin-variables --no-builtin-rules --question
+make: *** No rule to make target 'all'.  Stop.
+ 
+# GNU Make 4.3
+# Built for Windows32
+# Copyright (C) 1988-2020 Free Software Foundation, Inc.
+# License GPLv3+: GNU GPL version 3 or later <http://gnu.org/licenses/gpl.html>
+# This is free software: you are free to change and redistribute it.
+# There is NO WARRANTY, to the extent permitted by law.
+
+# Make data base, printed on Tue Mar 08 20:09:40 2022
+
+# Variables
+
+# environment
+SYSTEMDRIVE = C:
+# environment
+JAVA_HOME = C:\Program Files\Eclipse Adoptium\jdk-17.0.1.12-hotspot\
+# environment
+LC_ALL = C
+# environment
+VBOX_HWVIRTEX_IGNORE_SVM_IN_USE = 1
+# environment
+USERPROFILE = C:\Users\Mark-
+# environment
+HELLO = hello
+# environment
+ISONPLATFORM = Windows
+# environment
+LOCALAPPDATA = C:\Users\Mark-\AppData\Local
+# environment
+VSCODE_IPC_HOOK_EXTHOST = \\.\pipe\vscode-ipc-dd9b5c62-512c-4ea6-b252-a6a6e25c7c1e-sock
+# environment
+WSLENV = WT_SESSION:C:\Windows\System32\wsl.exe:WT_PROFILE_ID
+# environment
+VSCODE_CWD = C:\Users\Mark-\repos\pong-is-not-ping
+# makefile (from 'Makefile', line 2)
+DATE = $(shell date "+%Y%m%d%H%M%S")
+# environment
+CHOCOLATEYINSTALL = C:\ProgramData\chocolatey
+# environment
+SYSTEMROOT = C:\WINDOWS
+# environment
+PROCESSOR_LEVEL = 23
+# environment
+PSMODULEPATH = C:\Users\Mark-\Documents\PowerShell\Modules;C:\Program Files\PowerShell\Modules;c:\program files\powershell\7-preview\Modules;C:\Program Files\WindowsPowerShell\Modules;C:\WINDOWS\system32\WindowsPowerShell\v1.0\Modules
+# default
+MAKE_COMMAND := C:/ProgramData/chocolatey/lib/make/tools/install/bin/make.exe
+# environment
+GOPATH = C:\Users\Mark-\go
+# automatic
+@D = $(patsubst %/,%,$(patsubst %\,%,$(dir $@)))
+# environment
+CHROME_CRASHPAD_PIPE_NAME = \\.\pipe\crashpad_6772_SWLJDKNMWPDSKLVF
+# environment
+VSCODE_HANDLES_UNCAUGHT_ERRORS = true
+# default
+.VARIABLES := 
+# automatic
+%D = $(patsubst %/,%,$(patsubst %\,%,$(dir $%)))
+# automatic
+^D = $(patsubst %/,%,$(patsubst %\,%,$(dir $^)))
+# environment
+VSCODE_LOG_STACK = false
+# automatic
+%F = $(notdir $%)
+# environment
+VSCODE_CODE_CACHE_PATH = C:\Users\Mark-\AppData\Roaming\Code\CachedData\8908a9ca0f221f36507231afb39d2d8d1e182702
+# environment
+LANG = C
+# default
+.LOADED := 
+# environment
+FLUTTER = C:\Users\Mark-\flutter\bin
+# environment
+TMP = C:\Users\Mark-\AppData\Local\Temp
+# default
+.INCLUDE_DIRS = .
+# environment
+MACHINEENVVAR = machine
+# environment
+PROCESSOR_ARCHITEW6432 = AMD64
+# makefile
+MAKEFLAGS = pqrR
+# environment
+ONEDRIVE = C:\Users\Mark-\OneDrive
+# environment
+POWERSHELL_DISTRIBUTION_CHANNEL = MSI:Windows 10 Home
+# makefile
+CURDIR := c:/Users/Mark-/repos/pong-is-not-ping
+# environment
+VSCODE_PIPE_LOGGING = true
+# environment
+APPLICATION_INSIGHTS_NO_DIAGNOSTIC_CHANNEL = 1
+# automatic
+*D = $(patsubst %/,%,$(patsubst %\,%,$(dir $*)))
+# makefile (from 'Makefile', line 4)
+VERSION = $(VER)-$(DATE)-$(HASH)-mf
+# environment
+PROGRAMFILES = C:\Program Files (x86)
+# environment
+MFLAGS = -pqrR
+# default
+.SHELLFLAGS := -c
+# environment
+COMMONPROGRAMW6432 = C:\Program Files\Common Files
+# automatic
++D = $(patsubst %/,%,$(patsubst %\,%,$(dir $+)))
+# makefile (from 'Makefile', line 1)
+MAKEFILE_LIST := Makefile
+# automatic
+@F = $(notdir $@)
+# environment
+VSCODE_VERBOSE_LOGGING = true
+# environment
+VSCODE_PID = 6772
+# automatic
+?D = $(patsubst %/,%,$(patsubst %\,%,$(dir $?)))
+# environment
+WT_PROFILE_ID = {574e775e-4f2a-5b96-ac1e-a2962a402336}
+# automatic
+*F = $(notdir $*)
+# automatic
+<D = $(patsubst %/,%,$(patsubst %\,%,$(dir $<)))
+# environment
+HELLOWORLD = 1
+# environment
+VSCODE_NLS_CONFIG = {"locale":"en-us","availableLanguages":{},"_languagePackSupport":true}
+# environment
+ANDROID_SDK_ROOT = C:\Users\Mark-\AppData\Local\Android\Sdk
+# environment
+ONEDRIVECONSUMER = C:\Users\Mark-\OneDrive
+# default
+MAKE_HOST := Windows32
+# environment
+ANDROID_HOME = C:\Users\Mark-\AppData\Local\Android\Sdk
+# environment
+PROGRAMDATA = C:\ProgramData
+# default
+SHELL := C:/msys64/usr/bin/sh.exe
+# environment
+HOMEPATH = \Users\Mark-
+# default
+MAKECMDGOALS := all
+# environment
+DRIVERDATA = C:\Windows\System32\Drivers\DriverData
+# environment
+COMSPEC = C:\WINDOWS\system32\cmd.exe
+# environment
+WINDIR = C:\WINDOWS
+# environment
+MAKELEVEL := 0
+# default
+MAKE = $(MAKE_COMMAND)
+# environment
+PATH = C:\Program Files\PowerShell\7-preview;C:\Program Files\Eclipse Adoptium\jdk-17.0.1.12-hotspot\bin;C:\Program Files (x86)\Common Files\Oracle\Java\javapath;C:\Program Files\Python310\Scripts\;C:\Program Files\Python310\;C:\WINDOWS\system32;C:\WINDOWS;C:\WINDOWS\System32\Wbem;C:\WINDOWS\System32\WindowsPowerShell\v1.0\;C:\WINDOWS\System32\OpenSSH\;C:\Program Files\CMake\bin;C:\Program Files\dotnet;C:\Program Files\Microsoft SQL Server\130\Tools\Binn\;C:\Program Files\Microsoft SQL Server\150\Tools\Binn\;C:\Program Files\Inkscape\bin;C:\ProgramData\chocolatey\bin;C:\Users\Mark-\AppData\Local\Pub\Cache\bin;C:\Users\Mark-\AppData\Roaming\Python\Python310\Scripts;C:\Users\Mark-\scoop\shims;C:\Users\Mark-\AppData\Local\Microsoft\WindowsApps;C:\Users\Mark-\AppData\Local\Programs\Hyper\resources\bin;C:\Users\Mark-\AppData\Local\Programs\Microsoft VS Code Insiders\bin;C:\Users\Mark-\AppData\Local\Programs\Microsoft VS Code\bin;C:\Users\Mark-\.dotnet\tools;C:\Users\Mark-\AppData\Local\GitHubDesktop\bin;C:\Users\Mark-\AppData\Roaming\npm;C:\Program Files (x86)\GitHub CLI\;C:\Users\Mark-\.dotnet\tools;C:\Users\Mark-\flutter\bin;C:\Users\Mark-\AppData\Local\Pub\Cache\bin;C:\Users\Mark-\AppData\Roaming\Python\Python310\Scripts;C:\Users\Mark-\AppData\Local\Microsoft\WindowsApps;C:\Users\Mark-\.virtualenvs;C:\Users\Mark-\AppData\Local\electron-builder\Cache\winCodeSign\winCodeSign-2.6.0\rcedit-x64.exe;C:\msys64\mingw64\bin;C:\msys64\usr\bin;C:\Program Files\dotnet\;C:\Program Files\LLVM\bin;C:\Users\Mark-\repos\vcpkg\bin;C:\Program Files\Microsoft SQL Server\Client SDK\ODBC\170\Tools\Binn\;C:\Program Files\Google\Chrome\Application\;C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\Common7\IDE\devenv;C:\Program Files (x86)\IncrediBuild;C:\Program Files\Git\cmd;C:\Program Files\Git\mingw64\bin;C:\Program Files\Git\usr\bin;C:\Users\Mark-\repos\revive_1.1.3_Windows_x86_64\;C:\Program Files\PowerShell\7-preview\preview;C:\Program Files\nodejs\;C:\Program Files\Go\bin;C:\Program Files\GitHub CLI\;C:\Users\Mark-\scoop\apps\yarn\current\global\node_modules\.bin;C:\Users\Mark-\scoop\apps\yarn\current\bin;C:\Users\Mark-\scoop\apps\perl\current\perl\site\bin;C:\Users\Mark-\scoop\apps\perl\current\perl\bin;C:\Users\Mark-\AppData\Local\Android\Sdk\platform-tools;C:\Users\Mark-\AppData\Local\Android\Sdk\tools;C:\Users\Mark-\AppData\Local\Android\Sdk\platform-tools;C:\Users\Mark-\AppData\Local\Android\Sdk\tools;C:\Program Files\PowerShell\7-preview;C:\Ruby30-x64\bin;C:;C:\Users\Mark-\go\bin
+# environment
+COMPUTERNAME = 2MGN31V2
+# default
+MAKEFILES := 
+# automatic
+^F = $(notdir $^)
+# environment
+PROMPT = $P$G
+# environment
+CHOCOLATEYLASTPATHUPDATE = 132912213865307383
+# environment
+WT_SESSION = bdde4056-02a7-493d-915d-a5fe880730e8
+# environment
+LOGONSERVER = \\2MGN31V2
+# environment
+VSCODE_LOG_NATIVE = false
+# environment
+USERNAME = Mark
+# environment
+COMMONPROGRAMFILES = C:\Program Files (x86)\Common Files
+# automatic
+?F = $(notdir $?)
+# environment
+TRE = C:\Users\Mark-\local repositories\tre\tre.exe
+# environment
+PROGRAMW6432 = C:\Program Files
+# environment
+PATHEXT = .SCM;.COM;.EXE;.BAT;.CMD;.VBS;.VBE;.JS;.JSE;.WSF;.WSH;.MSC;.RB;.RBW;.PY;.PYW;.RB;.RBW;.CPL
+# automatic
++F = $(notdir $+)
+# environment
+ORIGINAL_XDG_CURRENT_DESKTOP = undefined
+# environment
+USERDOMAIN = 2MGN31V2
+# 'override' directive
+GNUMAKEFLAGS := 
+# environment
+VS140COMNTOOLS = C:\Program Files (x86)\Microsoft Visual Studio 14.0\Common7\Tools\
+# environment
+OS = Windows_NT
+# environment
+ISONPLATFORM0 = 0
+# environment
+H = h
+# environment
+USERENVVAR = user
+# environment
+BASH_ENV = C:\Users\Mark-\.bashrc
+# makefile
+.DEFAULT_GOAL := pong
+# default
+MAKE_VERSION := 4.3
+# environment
+PROGRAMFILES(X86) = C:\Program Files (x86)
+# environment
+USERDOMAIN_ROAMINGPROFILE = 2MGN31V2
+# environment
+NUMBER_OF_PROCESSORS = 12
+# environment
+PUBLIC = C:\Users\Public
+# makefile (from 'Makefile', line 1)
+VER = $(shell git describe --tags --abbrev=0)
+# environment
+APPDATA = C:\Users\Mark-\AppData\Roaming
+# makefile (from 'Makefile', line 3)
+HASH = $(shell git rev-parse --short HEAD)
+# environment
+HOMEDRIVE = C:
+# environment
+PROCESSOR_ARCHITECTURE = x86
+# environment
+NODE_PATH = C:\Users\Mark-\scoop\apps\yarn\current\global\node_modules
+# environment
+GOMODCACHE = C:\Users\Mark-\go\pkg\mod
+# environment
+VSCODE_AMD_ENTRYPOINT = vs/workbench/api/node/extensionHostProcess
+# environment
+COMMONPROGRAMFILES(X86) = C:\Program Files (x86)\Common Files
+# environment
+ELECTRON_RUN_AS_NODE = 1
+# environment
+TEMP = C:\Users\Mark-\AppData\Local\Temp
+# environment
+VSCODE_IPC_HOOK = \\.\pipe\62ef3730e0d30fd58aa3de8709b58ccd-1.65.1-main-sock
+# environment
+GOPROXY = https://proxy.golang.org,direct
+# default
+.RECIPEPREFIX := 
+# automatic
+<F = $(notdir $<)
+# default
+SUFFIXES := 
+# environment
+ALLUSERSPROFILE = C:\ProgramData
+# environment
+VSCODE_CLI = 1
+# environment
+ELECTRON_NO_ATTACH_CONSOLE = 1
+# default
+.FEATURES := target-specific order-only second-expansion else-if shortest-stem undefine oneshell nocomment grouped-target extra-prereqs archives jobserver output-sync load
+# environment
+PROCESSOR_REVISION = 6801
+# environment
+CHOCOLATEYTOOLSLOCATION = C:\tools
+# environment
+PROCESSOR_IDENTIFIER = AMD64 Family 23 Model 104 Stepping 1, AuthenticAMD
+# variable set hash-table stats:
+# Load=124/1024=12%, Rehash=0, Collisions=15/150=10%
+
+# Pattern-specific Variable Values
+
+# No pattern-specific variable values.
+
+# Directories
+
+# . (key c:/Users/Mark-/repos/pong-is-not-ping, mtime 1646791779): 11 files, no impossibilities.
+
+# 11 files, no impossibilities in 1 directories.
+
+# Implicit Rules
+
+# No implicit rules.
+
+# Files
+
+pong:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+#  recipe to execute (from 'Makefile', line 8):
+	go build -ldflags '-X "main.version=$(VERSION)"' ./cmd/pong
+
+# Not a target:
+Makefile:
+#  Implicit rule search has been done.
+#  Last modified 2022-03-08 20:09:19
+#  File has been updated.
+#  Successfully updated.
+
+clean:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+#  recipe to execute (from 'Makefile', line 11):
+	rm -f pong
+
+# Not a target:
+.DEFAULT:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+
+# Not a target:
+all:
+#  Command line target.
+#  Implicit rule search has been done.
+#  File does not exist.
+#  File has not been updated.
+
+# files hash-table stats:
+# Load=6/1024=1%, Rehash=0, Collisions=0/16=0%
+# VPATH Search Paths
+
+# No 'vpath' search paths.
+
+# No general ('VPATH' variable) search path.
+
+# strcache buffers: 1 (0) / strings = 16 / storage = 102 B / avg = 6 B
+# current buf: size = 8174 B / used = 102 B / count = 16 / avg = 6 B
+
+# strcache performance: lookups = 22 / hit rate = 27%
+# hash-table stats:
+# Load=16/8192=0%, Rehash=0, Collisions=0/22=0%
+# Finished Make data base on Tue Mar 08 20:09:40 2022
+
+ 

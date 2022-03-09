@@ -1,0 +1,4 @@
+make: Entering directory 'c:/Users/Mark-/repos/pong-is-not-ping'
+go build -ldflags '-X "main.version=v0.1.0-20220308200940-f395e98-mf"' ./cmd/pong
+make: Leaving directory 'c:/Users/Mark-/repos/pong-is-not-ping'
+ 
