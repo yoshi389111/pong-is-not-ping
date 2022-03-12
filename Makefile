@@ -52,3 +52,6 @@ linux64:
 
 clean:
 	rm -rf ./bin/
+
+run:
+	go run ./cmd/pong 192.168.1.1
