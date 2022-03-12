@@ -203,8 +203,16 @@ func playService(g *GameInfo, packetData string, kch chan termbox.Key, tch chan 
 			messageLabel.draw()
 		}
 
-		descLabel := fmt.Sprintf("icmp_seq=%d ttl=%d", seq, ttl)
-		drawString(g.width-len(descLabel)-2, 0, descLabel)
+		titleLabel := fmt.Sprintf("pong %s", opts.Args.Destination)
+		drawString(1, 0, titleLabel)
+
+		descLabel := fmt.Sprintf("  icmp_seq=%d ttl=%d", seq, ttl)
+		drawString(g.width-len(descLabel)-1, 0, descLabel)
+
+		bps := int(8 * time.Second / (time.Millisecond * time.Duration(TIME_SPAN*(BALL_WAIT_MAX-ballSpeed+1))))
+		bpsLabel := fmt.Sprintf("Speed: %dbps", bps)
+		drawString(1, g.height-1, bpsLabel)
+
 		termbox.Flush()
 
 		select {
