@@ -54,9 +54,13 @@ func keyEventLoop(kch chan termbox.Key) {
 	}
 }
 
+func drawChar(x, y int, ch rune) {
+	termbox.SetCell(x, y, ch, termbox.ColorDefault, termbox.ColorDefault)
+}
+
 func drawString(x, y int, str string) {
 	for i, ch := range []rune(str) {
-		termbox.SetCell(x+i, y, ch, termbox.ColorDefault, termbox.ColorDefault)
+		drawChar(x+i, y, ch)
 	}
 }
 
@@ -65,22 +69,20 @@ func (o *PongObject) draw() {
 	size := len(runes)
 	x := o.point.X
 	y := o.point.Y
-	width := o.size.Width
-	height := o.size.Height
-	for h := 0; h < height; h++ {
-		for w := 0; w < width; w++ {
-			ch := runes[(h*width+w)%size]
-			termbox.SetCell(x+w, y+h, ch, termbox.ColorDefault, termbox.ColorDefault)
+	for h, hmax := 0, o.size.Height; h < hmax; h++ {
+		for w, wmax := 0, o.size.Width; w < wmax; w++ {
+			drawChar(x+w, y+h, runes[(h*wmax+w)%size])
 		}
 	}
 }
 
+func (s *Shadow) draw() {
+	drawChar(s.point.X, s.point.Y, s.ch)
+}
+
 func (o *BallObject) draw() {
-	shadows := o.shadows
-	for i := len(shadows) - 1; 0 <= i; i -= 1 {
-		shadow := shadows[i]
-		termbox.SetCell(shadow.point.X, shadow.point.Y, shadow.ch,
-			termbox.ColorDefault, termbox.ColorDefault)
+	for i := len(o.shadows) - 1; 0 <= i; i -= 1 {
+		o.shadows[i].draw()
 	}
 }
 
@@ -142,8 +144,6 @@ func moveEnemy(g *GameInfo, enemy, user *PongObject, ball *BallObject, ttl int) 
 	ballDx := ball.vectorF.Dx
 	ballPoint := ball.Point()
 
-	enemyY := enemy.point.Y + enemy.size.Height/2 - ttl%2
-
 	var bestY int
 	if ballDx < 0 && ballPoint.X < g.width/2 {
 		bestY = ballPoint.Y
@@ -154,6 +154,8 @@ func moveEnemy(g *GameInfo, enemy, user *PongObject, ball *BallObject, ttl int) 
 	} else {
 		return
 	}
+
+	enemyY := enemy.point.Y + enemy.size.Height/2 - ttl%2
 
 	if bestY < enemyY && g.top+1 < enemy.point.Y {
 		enemy.Move(0, -1)
