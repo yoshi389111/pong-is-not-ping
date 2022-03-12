@@ -138,11 +138,11 @@ func newBall(packetData string, height int) BallObject {
 	return NewBallObject(6, y, 1, dy, packetData)
 }
 
-func moveEnemy(g *GameInfo, enemy, user *PongObject, ball *BallObject) {
+func moveEnemy(g *GameInfo, enemy, user *PongObject, ball *BallObject, ttl int) {
 	ballDx := ball.vectorF.Dx
 	ballPoint := ball.Point()
 
-	enemyY := enemy.point.Y + enemy.size.Height/2
+	enemyY := enemy.point.Y + enemy.size.Height/2 - ttl%2
 
 	var bestY int
 	if ballDx < 0 && ballPoint.X < g.width/2 {
@@ -239,7 +239,7 @@ func playService(g *GameInfo, packetData string, kch chan termbox.Key, tch chan 
 			enemyWait--
 			if enemyWait < 0 {
 				enemyWait = ENEMY_WAIT_MAX
-				moveEnemy(g, &enemy, &user, &ball)
+				moveEnemy(g, &enemy, &user, &ball, ttl)
 			}
 
 			ballWait--
