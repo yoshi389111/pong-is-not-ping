@@ -211,7 +211,7 @@ func playService(g *GameInfo, packetData string, kch chan termbox.Key, tch chan 
 		descLabel := fmt.Sprintf("  icmp_seq=%d ttl=%d", seq, ttl)
 		drawString(g.width-len(descLabel)-1, 0, descLabel)
 
-		bps := int(8 * time.Second / (time.Millisecond * time.Duration(TIME_SPAN*(BALL_WAIT_MAX-ballSpeed+1))))
+		bps := int(8 * time.Second / (time.Millisecond * time.Duration(TIME_SPAN*(BALL_WAIT_MAX-ballSpeed))))
 		bpsLabel := fmt.Sprintf("Speed: %dbps", bps)
 		drawString(1, g.height-1, bpsLabel)
 
@@ -257,7 +257,7 @@ func playService(g *GameInfo, packetData string, kch chan termbox.Key, tch chan 
 				}
 				if user.Collision(ball.Point()) {
 					ball.reflectPaddle(&user)
-					if ballSpeed < BALL_WAIT_MAX && rand.Intn(2) == 1 {
+					if ballSpeed+1 < BALL_WAIT_MAX && rand.Intn(2) == 1 {
 						// speed up
 						ballSpeed++
 					}
