@@ -26,8 +26,8 @@ type PongObject struct {
 	str   string
 }
 
-func NewPongObject(x, y, w, h int, str string) PongObject {
-	return PongObject{
+func NewPongObject(x, y, w, h int, str string) *PongObject {
+	return &PongObject{
 		point: Point{x, y},
 		size:  Size{w, h},
 		str:   str,
@@ -55,12 +55,12 @@ type BallObject struct {
 	shadows []Shadow
 }
 
-func NewBallObject(x, y int, dx, dy float32, str string) BallObject {
+func NewBallObject(x, y int, dx, dy float32, str string) *BallObject {
 	shadows := make([]Shadow, 0, len(str))
 	for _, ch := range []rune(str) {
 		shadows = append(shadows, Shadow{Point{x, y}, ch})
 	}
-	return BallObject{
+	return &BallObject{
 		pointF:  BallPoint{float32(x), float32(y)},
 		vectorF: BallVector{dx, dy},
 		shadows: shadows,
