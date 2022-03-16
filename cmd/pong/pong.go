@@ -182,6 +182,16 @@ func (g *GameInfo) moveEnemy() {
 	g.enemyY = g.enemy.point.Y
 }
 
+func (g *GameInfo) moveUser(dy int) {
+	if dy < 0 && g.top+1 < g.user.point.Y {
+		g.user.Move(0, -1)
+		g.userY = g.user.point.Y
+	} else if 0 < dy && g.user.point.Y+g.user.size.Height < g.bottom {
+		g.user.Move(0, 1)
+		g.userY = g.user.point.Y
+	}
+}
+
 func (g *GameInfo) init(packetData string, seq int) {
 	termbox.Clear(termbox.ColorDefault, termbox.ColorDefault)
 	g.width, g.height = termbox.Size()
@@ -269,15 +279,9 @@ func (g *GameInfo) playService(packetData string, seq int, kch chan termbox.Even
 			case ev.Type == termbox.EventKey && ev.Key == termbox.KeyCtrlC:
 				return nil, nil
 			case ev.Type == termbox.EventKey && ev.Key == termbox.KeyArrowUp:
-				if g.top+1 < g.user.point.Y {
-					g.user.Move(0, -1)
-					g.userY = g.user.point.Y
-				}
+				g.moveUser(-1)
 			case ev.Type == termbox.EventKey && ev.Key == termbox.KeyArrowDown:
-				if g.user.point.Y+g.user.size.Height < g.bottom {
-					g.user.Move(0, 1)
-					g.userY = g.user.point.Y
-				}
+				g.moveUser(1)
 			case ev.Type == termbox.EventResize:
 				g.init(packetData, seq)
 				continue
