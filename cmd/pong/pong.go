@@ -11,13 +11,16 @@ import (
 )
 
 const (
-	TIME_SPAN       = 10  // [ms]
-	BALL_WAIT_MAX   = 9   // 90 [ms] = 9 * TIME_SPAN
-	ENEMY_WAIT_MAX  = 8   // 70 [ms]
-	MSG_WAIT_MAX    = 150 // 1500 [ms]
-	PACKET_HEADER   = "ICMP ECHO"
-	PADDLE_WIDTH    = 2
-	PADDLE_HEIGHT   = 4
+	TIME_SPAN     = 10  // [ms]
+	BALL_WAIT_MAX = 9   // 90 [ms] = 9 * TIME_SPAN
+	CPU_WAIT_MAX  = 8   // 70 [ms]
+	MSG_WAIT_MAX  = 150 // 1500 [ms]
+
+	PACKET_HEADER = "ICMP ECHO"
+
+	PADDLE_WIDTH  = 2
+	PADDLE_HEIGHT = 4
+
 	TERM_WIDTH_MIN  = 30
 	TERM_HEIGHT_MIN = 15
 )
@@ -26,6 +29,31 @@ type PongResult struct {
 	received bool
 	ttl      int
 	time     int
+}
+
+type GameInfo struct {
+	// terminal
+
+	width  int
+	height int
+	top    int
+	bottom int
+	narrow bool
+
+	// paddle positions & ball
+
+	cpuY int
+	usrY int
+	ball *Ball
+
+	// status
+
+	ballSpeed int
+	ballWait  int
+	cpuWait   int
+	msgWait   int
+	ttl       int
+	startTiem time.Time
 }
 
 func timerEventLoop(tch chan bool) {
@@ -40,7 +68,6 @@ func keyEventLoop(kch chan termbox.Event) {
 		switch ev := termbox.PollEvent(); ev.Type {
 		case termbox.EventKey, termbox.EventResize:
 			kch <- ev
-		default:
 		}
 	}
 }
@@ -55,68 +82,8 @@ func drawString(x, y int, str string) {
 	}
 }
 
-func (o *PongObject) draw() {
-	runes := []rune(o.str)
-	size := len(runes)
-	x := o.point.X
-	y := o.point.Y
-	for h, hmax := 0, o.size.Height; h < hmax; h++ {
-		for w, wmax := 0, o.size.Width; w < wmax; w++ {
-			drawChar(x+w, y+h, runes[(h*wmax+w)%size])
-		}
-	}
-}
-
-func (s *Shadow) draw() {
-	drawChar(s.point.X, s.point.Y, s.ch)
-}
-
-func (o *BallObject) draw() {
-	for i := len(o.shadows) - 1; 0 <= i; i -= 1 {
-		o.shadows[i].draw()
-	}
-}
-
-func (o *BallObject) reflectPaddle(paddle *PongObject) {
-	ballY := int(o.pointF.Y - o.vectorF.Dy)
-
-	dx := -o.vectorF.Dx
-	var dy float32
-	switch ballY - paddle.point.Y {
-	case -1:
-		dy = -1
-	case 0:
-		dy = -0.5
-	case 1:
-		dy = -0.25
-	case 2:
-		dy = 0.25
-	case 3:
-		dy = 0.5
-	default:
-		dy = 1
-	}
-
-	var ballX int
-	if dx < 0 {
-		ballX = paddle.point.X - 1
-	} else {
-		ballX = paddle.point.X + paddle.size.Width
-	}
-	o.Set(ballX, ballY, dx, dy)
-}
-
-func (o *BallObject) reflectWall(wall *PongObject) {
-	point := o.Point()
-	if o.vectorF.Dy < 0 {
-		o.Set(point.X, wall.point.Y+wall.size.Height, o.vectorF.Dx, -o.vectorF.Dy)
-	} else {
-		o.Set(point.X, wall.point.Y-1, o.vectorF.Dx, -o.vectorF.Dy)
-	}
-}
-
-func newBall(packetData string, height int) *BallObject {
-	y := rand.Intn(height/3) + height/3
+func (g *GameInfo) newBall(packetData string) *Ball {
+	y := rand.Intn(g.height/3) + g.height/3
 	var dy float32
 	switch rand.Intn(4) {
 	case 0:
@@ -128,116 +95,78 @@ func newBall(packetData string, height int) *BallObject {
 	default:
 		dy = 0.5
 	}
-	return NewBallObject(6, y, 1, dy, packetData)
+	return NewBall(6, y, 1, dy, packetData)
 }
 
-type GameInfo struct {
-	width  int
-	height int
-	top    int
-	bottom int
-
-	enemyY int
-	userY  int
-	enemy  *PongObject
-	user   *PongObject
-
-	ball           *BallObject
-	messageLabel   *PongObject
-	topWall        *PongObject
-	bottomWall     *PongObject
-	leftWall       *PongObject
-	localhostLabel *PongObject
-
-	ballSpeed int
-	ballWait  int
-	enemyWait int
-	msgWait   int
-	ttl       int
-	startTiem time.Time
+func (g *GameInfo) isInsideCourt(paddleY int) bool {
+	return g.top < paddleY && paddleY+PADDLE_HEIGHT <= g.bottom
 }
 
-func (g *GameInfo) moveEnemy() {
-	ballDx := g.ball.vectorF.Dx
+func (g *GameInfo) correctPaddleY(y int) int {
+	if g.isInsideCourt(y) {
+		return y
+	} else {
+		return (g.bottom - PADDLE_HEIGHT) / 2
+	}
+}
+
+func (g *GameInfo) moveCpu(p *Paddle) {
+	ballDx := g.ball.dx
 	ballPoint := g.ball.Point()
 
 	var bestY int
 	if ballDx < 0 && ballPoint.X < g.width/2 {
+		// Chase the ball
 		bestY = ballPoint.Y
 	} else if rand.Intn(2) == 1 {
+		// Move between user and ball
 		ballY := ballPoint.Y
-		selfY := g.user.point.Y + g.user.size.Height/2
-		bestY = (selfY + ballY) / 2
+		usrY := g.usrY + PADDLE_HEIGHT/2
+		bestY = (usrY + ballY) / 2
 	} else {
+		// Not moving
 		return
 	}
 
-	nowEnemyY := g.enemy.point.Y + g.enemy.size.Height/2 - g.ttl%2
-
-	if bestY < nowEnemyY && g.top+1 < g.enemy.point.Y {
-		g.enemy.Move(0, -1)
-	} else if nowEnemyY < bestY && g.enemy.point.Y+g.enemy.size.Height < g.bottom {
-		g.enemy.Move(0, 1)
+	paddleCenterY := p.y + p.h/2 - g.ttl%2
+	var cpuDy int
+	if bestY < paddleCenterY && g.isInsideCourt(p.y-1) {
+		cpuDy = -1
+	} else if paddleCenterY < bestY && g.isInsideCourt(p.y+1) {
+		cpuDy = 1
+	} else {
+		return
 	}
-	g.enemyY = g.enemy.point.Y
+	p.MoveY(cpuDy)
+	g.cpuY = p.y
 }
 
-func (g *GameInfo) moveUser(dy int) {
-	if dy < 0 && g.top+1 < g.user.point.Y {
-		g.user.Move(0, -1)
-		g.userY = g.user.point.Y
-	} else if 0 < dy && g.user.point.Y+g.user.size.Height < g.bottom {
-		g.user.Move(0, 1)
-		g.userY = g.user.point.Y
+func (g *GameInfo) moveUsr(p *Paddle, dy int) {
+	var usrDy int
+	if dy < 0 && g.isInsideCourt(p.y-1) {
+		usrDy = -1
+	} else if 0 < dy && g.isInsideCourt(p.y+1) {
+		usrDy = 1
+	} else {
+		return
 	}
+	p.MoveY(usrDy)
+	g.usrY = p.y
 }
 
-func (g *GameInfo) init(packetData string, seq int) {
+func (g *GameInfo) adjustSize() {
 	termbox.Clear(termbox.ColorDefault, termbox.ColorDefault)
 	g.width, g.height = termbox.Size()
 	g.top = 1
 	g.bottom = g.height - 2
+	g.narrow = g.width < TERM_WIDTH_MIN || g.height < TERM_HEIGHT_MIN
+}
 
-	maxY := g.bottom - PADDLE_HEIGHT
-	var enemyY int
-	if g.enemyY == 0 {
-		enemyY = maxY / 2
-	} else if maxY < g.enemyY {
-		enemyY = maxY
-	} else {
-		enemyY = g.enemyY
-	}
-	var userY int
-	if g.userY == 0 {
-		userY = maxY / 2
-	} else if maxY < g.userY {
-		userY = maxY
-	} else {
-		userY = g.userY
-	}
-
-	var message string
-	if g.width < TERM_WIDTH_MIN || g.height < TERM_HEIGHT_MIN {
-		message = "This term is too narrow."
-	} else {
-		message = fmt.Sprintf("start icmp_seq=%d", seq)
-	}
-	g.messageLabel = NewPongObject((g.width-len(message))/2, g.height/2, len(message), 1, message)
-
-	g.topWall = NewPongObject(0, g.top, g.width, 1, "=")
-	g.bottomWall = NewPongObject(0, g.bottom, g.width, 1, "=")
-	g.leftWall = NewPongObject(0, g.top+1, 1, g.bottom-g.top-1, "|")
-	g.localhostLabel = NewPongObject(0, (g.height-11)/2, 1, 11, " localhost ")
-
-	g.enemy = NewPongObject(3, enemyY, PADDLE_WIDTH, PADDLE_HEIGHT, "||G|W|||")
-	g.user = NewPongObject(g.width-4, userY, PADDLE_WIDTH, PADDLE_HEIGHT, "|")
-	g.ball = newBall(packetData, g.height)
-
+func (g *GameInfo) initStatus() {
 	g.ballSpeed = 0
 	g.ballWait = BALL_WAIT_MAX
-	g.enemyWait = ENEMY_WAIT_MAX
+	g.cpuWait = CPU_WAIT_MAX
 	g.msgWait = MSG_WAIT_MAX
-
 	g.ttl = opts.TimeToLive
 	g.startTiem = time.Now()
 }
@@ -245,31 +174,57 @@ func (g *GameInfo) init(packetData string, seq int) {
 // play service.
 func (g *GameInfo) playService(packetData string, seq int, kch chan termbox.Event, tch chan bool) (*PongResult, error) {
 
-	g.init(packetData, seq)
+	g.adjustSize()
+	g.initStatus()
+	g.ball = g.newBall(packetData)
+
+	title := fmt.Sprintf("pong %s", opts.Args.Destination)
+	titleLabel := Message{1, 0, title}
+	startMessage := fmt.Sprintf("start icmp_seq=%d", seq)
 
 	for {
 		termbox.Clear(termbox.ColorDefault, termbox.ColorDefault)
-		g.topWall.draw()
-		g.bottomWall.draw()
-		g.leftWall.draw()
-		g.localhostLabel.draw()
-		g.enemy.draw()
-		g.user.draw()
-		if g.msgWait == 0 {
-			g.ball.draw()
+
+		topWall := Wall{g.top, g.width, '='}
+		bottomWall := Wall{g.bottom, g.width, '='}
+		leftWall := VMessage{0, g.top + 1, g.bottom - g.top - 1, "|"}
+		localhostLabel := VMessage{0, (g.height - 11) / 2, 11, " localhost "}
+
+		cpuY := g.correctPaddleY(g.cpuY)
+		usrY := g.correctPaddleY(g.usrY)
+		cpuPaddle := Paddle{3, cpuY, PADDLE_WIDTH, PADDLE_HEIGHT, "||G|W|||"}
+		usrPaddle := Paddle{g.width - 4, usrY, PADDLE_WIDTH, PADDLE_HEIGHT, "|"}
+
+		if g.narrow {
+			if g.msgWait == 0 {
+				err := fmt.Errorf("This term(%dx%d) is too narrow. Requires %dx%d area",
+					g.width, g.height, TERM_WIDTH_MIN, TERM_HEIGHT_MIN)
+				return nil, err
+			} else {
+				warningMessage := "This term is too narrow."
+				drawString((g.width-len(warningMessage))/2, g.height/2, warningMessage)
+			}
 		} else {
-			g.messageLabel.draw()
+			topWall.Draw()
+			bottomWall.Draw()
+			leftWall.Draw()
+			localhostLabel.Draw()
+			cpuPaddle.Draw()
+			usrPaddle.Draw()
+			if g.msgWait == 0 {
+				g.ball.Draw()
+			} else {
+				drawString((g.width-len(startMessage))/2, g.height/2, startMessage)
+			}
+			titleLabel.Draw()
+
+			descLabel := fmt.Sprintf("  icmp_seq=%d ttl=%d", seq, g.ttl)
+			drawString(g.width-len(descLabel)-1, 0, descLabel)
+
+			bps := int(8 * time.Second / (time.Millisecond * time.Duration(TIME_SPAN*(BALL_WAIT_MAX-g.ballSpeed))))
+			bpsLabel := fmt.Sprintf("Speed: %dbps", bps)
+			drawString(1, g.height-1, bpsLabel)
 		}
-
-		titleLabel := fmt.Sprintf("pong %s", opts.Args.Destination)
-		drawString(1, 0, titleLabel)
-
-		descLabel := fmt.Sprintf("  icmp_seq=%d ttl=%d", seq, g.ttl)
-		drawString(g.width-len(descLabel)-1, 0, descLabel)
-
-		bps := int(8 * time.Second / (time.Millisecond * time.Duration(TIME_SPAN*(BALL_WAIT_MAX-g.ballSpeed))))
-		bpsLabel := fmt.Sprintf("Speed: %dbps", bps)
-		drawString(1, g.height-1, bpsLabel)
 
 		termbox.Flush()
 
@@ -279,60 +234,58 @@ func (g *GameInfo) playService(packetData string, seq int, kch chan termbox.Even
 			case ev.Type == termbox.EventKey && ev.Key == termbox.KeyCtrlC:
 				return nil, nil
 			case ev.Type == termbox.EventKey && ev.Key == termbox.KeyArrowUp:
-				g.moveUser(-1)
+				g.moveUsr(&usrPaddle, -1)
 			case ev.Type == termbox.EventKey && ev.Key == termbox.KeyArrowDown:
-				g.moveUser(1)
+				g.moveUsr(&usrPaddle, 1)
 			case ev.Type == termbox.EventResize:
-				g.init(packetData, seq)
+				g.adjustSize()
+				g.initStatus()
+				g.ball = g.newBall(packetData)
 				continue
 			}
 		case <-tch:
 			if 0 < g.msgWait {
 				g.msgWait--
 				continue
-			} else if g.width < TERM_WIDTH_MIN || g.height < TERM_HEIGHT_MIN {
-				err := fmt.Errorf("This term(%dx%d) is too narrow. Requires %dx%d area",
-					g.width, g.height, TERM_WIDTH_MIN, TERM_HEIGHT_MIN)
-				return nil, err
 			}
 
-			g.enemyWait--
-			if g.enemyWait < 0 {
-				g.enemyWait = ENEMY_WAIT_MAX
-				g.moveEnemy()
+			g.cpuWait--
+			if g.cpuWait < 0 {
+				g.cpuWait = CPU_WAIT_MAX
+				g.moveCpu(&cpuPaddle)
 			}
 
 			g.ballWait--
 			if g.ballWait < 0 {
 				g.ballWait = BALL_WAIT_MAX - g.ballSpeed
-				g.ball.Next()
+				g.ball.moveNext()
 
-				if g.topWall.Collision(g.ball.Point()) {
-					g.ball.reflectWall(g.topWall)
+				if topWall.Collision(g.ball.Point()) {
+					topWall.Reflect(g.ball)
 				}
-				if g.bottomWall.Collision(g.ball.Point()) {
-					g.ball.reflectWall(g.bottomWall)
+				if bottomWall.Collision(g.ball.Point()) {
+					bottomWall.Reflect(g.ball)
 				}
-				if g.user.Collision(g.ball.Point()) {
-					g.ball.reflectPaddle(g.user)
+				if usrPaddle.Collision(g.ball.Point()) {
+					usrPaddle.Reflect(g.ball)
 					if g.ballSpeed+1 < BALL_WAIT_MAX && rand.Intn(2) == 1 {
 						// speed up
 						g.ballSpeed++
 					}
 				}
-				if g.enemy.Collision(g.ball.Point()) {
-					g.ball.reflectPaddle(g.enemy)
+				if cpuPaddle.Collision(g.ball.Point()) {
+					cpuPaddle.Reflect(g.ball)
 					g.ttl--
 					if g.ttl <= 0 {
 						// lose(ttl=0)
 						return &PongResult{}, nil
 					}
 				}
-				if g.topWall.Collision(g.ball.Point()) {
-					g.ball.reflectWall(g.topWall)
+				if topWall.Collision(g.ball.Point()) {
+					topWall.Reflect(g.ball)
 				}
-				if g.bottomWall.Collision(g.ball.Point()) {
-					g.ball.reflectWall(g.bottomWall)
+				if bottomWall.Collision(g.ball.Point()) {
+					bottomWall.Reflect(g.ball)
 				}
 				ballX := g.ball.Point().X
 				if ballX < 1 {
@@ -398,7 +351,6 @@ func pong() {
 	} else {
 		packetData = PACKET_HEADER
 	}
-	packetLen := len(packetData)
 
 	startTiem := time.Now()
 
@@ -426,6 +378,7 @@ func pong() {
 	}
 
 	// show results
+	packetLen := len(packetData)
 	fmt.Printf("PONG %s(%s) %d bytes of data.\n", opts.Args.Destination, addr, packetLen)
 	for i, r := range results {
 		if r.received {
