@@ -54,6 +54,8 @@ type GameInfo struct {
 	msgWait   int
 	ttl       int
 	startTiem time.Time
+
+	mode PongMode
 }
 
 func timerEventLoop(tch chan bool) {
@@ -98,12 +100,12 @@ func (g *GameInfo) newBall(packetData string) *Ball {
 	return NewBall(6, y, 1, dy, packetData)
 }
 
-func (g *GameInfo) isInsideCourt(paddleY int) bool {
-	return g.top < paddleY && paddleY+PADDLE_HEIGHT <= g.bottom
+func (g *GameInfo) isInsidePaddleY(y int) bool {
+	return g.top < y && y+PADDLE_HEIGHT <= g.bottom
 }
 
 func (g *GameInfo) correctPaddleY(y int) int {
-	if g.isInsideCourt(y) {
+	if g.isInsidePaddleY(y) {
 		return y
 	} else {
 		return (g.bottom - PADDLE_HEIGHT) / 2
@@ -130,9 +132,9 @@ func (g *GameInfo) moveCpu(p *Paddle) {
 
 	paddleCenterY := p.y + p.h/2 - g.ttl%2
 	var cpuDy int
-	if bestY < paddleCenterY && g.isInsideCourt(p.y-1) {
+	if bestY < paddleCenterY && g.isInsidePaddleY(p.y-1) {
 		cpuDy = -1
-	} else if paddleCenterY < bestY && g.isInsideCourt(p.y+1) {
+	} else if paddleCenterY < bestY && g.isInsidePaddleY(p.y+1) {
 		cpuDy = 1
 	} else {
 		return
@@ -143,9 +145,9 @@ func (g *GameInfo) moveCpu(p *Paddle) {
 
 func (g *GameInfo) moveUsr(p *Paddle, dy int) {
 	var usrDy int
-	if dy < 0 && g.isInsideCourt(p.y-1) {
+	if dy < 0 && g.isInsidePaddleY(p.y-1) {
 		usrDy = -1
-	} else if 0 < dy && g.isInsideCourt(p.y+1) {
+	} else if 0 < dy && g.isInsidePaddleY(p.y+1) {
 		usrDy = 1
 	} else {
 		return
@@ -169,10 +171,11 @@ func (g *GameInfo) initStatus() {
 	g.msgWait = MSG_WAIT_MAX
 	g.ttl = opts.TimeToLive
 	g.startTiem = time.Now()
+	g.mode.Set(MODE_OPENING_MSG)
 }
 
 // play service.
-func (g *GameInfo) playService(packetData string, seq int, kch chan termbox.Event, tch chan bool) (*PongResult, error) {
+func (g *GameInfo) playService(packetData string, seq int, kch chan termbox.Event, tch chan bool) (result *PongResult, err error) {
 
 	g.adjustSize()
 	g.initStatus()
@@ -180,6 +183,8 @@ func (g *GameInfo) playService(packetData string, seq int, kch chan termbox.Even
 
 	title := fmt.Sprintf("pong %s", opts.Args.Destination)
 	startMessage := fmt.Sprintf("start icmp_seq=%d", seq)
+
+	var endMessage string
 
 	for {
 		termbox.Clear(termbox.ColorDefault, termbox.ColorDefault)
@@ -195,7 +200,7 @@ func (g *GameInfo) playService(packetData string, seq int, kch chan termbox.Even
 		usrPaddle := Paddle{g.width - 4, usrY, PADDLE_WIDTH, PADDLE_HEIGHT, "|"}
 
 		if g.narrow {
-			if g.msgWait == 0 {
+			if g.mode.Get() == MODE_PLAYING {
 				err := fmt.Errorf("This term(%dx%d) is too narrow. Requires %dx%d area",
 					g.width, g.height, TERM_WIDTH_MIN, TERM_HEIGHT_MIN)
 				return nil, err
@@ -210,10 +215,14 @@ func (g *GameInfo) playService(packetData string, seq int, kch chan termbox.Even
 			localhostLabel.Draw()
 			cpuPaddle.Draw()
 			usrPaddle.Draw()
-			if g.msgWait == 0 {
+			switch g.mode.Get() {
+			case MODE_PLAYING:
 				g.ball.Draw()
-			} else {
+			case MODE_OPENING_MSG:
 				drawString((g.width-len(startMessage))/2, g.height/2, startMessage)
+			case MODE_RESULT_MSG:
+				g.ball.Draw()
+				drawString((g.width-len(endMessage))/2, g.height/2, endMessage)
 			}
 			drawString(1, 0, title)
 
@@ -243,8 +252,18 @@ func (g *GameInfo) playService(packetData string, seq int, kch chan termbox.Even
 				continue
 			}
 		case <-tch:
-			if 0 < g.msgWait {
-				g.msgWait--
+			g.mode.Update()
+			switch g.mode.Get() {
+			case MODE_END:
+				return
+			case MODE_OPENING_MSG:
+				continue
+			case MODE_RESULT_MSG:
+				g.ballWait--
+				if g.ballWait < 0 {
+					g.ballWait = BALL_WAIT_MAX - g.ballSpeed
+					g.ball.moveNext()
+				}
 				continue
 			}
 
@@ -290,10 +309,14 @@ func (g *GameInfo) playService(packetData string, seq int, kch chan termbox.Even
 				if ballX < 1 {
 					// win
 					time := int(time.Since(g.startTiem) / time.Second)
-					return &PongResult{true, g.ttl, time}, nil
+					result, err = &PongResult{true, g.ttl, time}, nil
+					endMessage = fmt.Sprintf("received. time=%d", time)
+					g.mode.Set(MODE_RESULT_MSG)
 				} else if g.width-1 <= ballX {
 					// lose
-					return &PongResult{}, nil
+					result, err = &PongResult{}, nil
+					endMessage = "request timed out"
+					g.mode.Set(MODE_RESULT_MSG)
 				}
 			}
 		}
