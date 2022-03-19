@@ -179,7 +179,6 @@ func (g *GameInfo) playService(packetData string, seq int, kch chan termbox.Even
 	g.ball = g.newBall(packetData)
 
 	title := fmt.Sprintf("pong %s", opts.Args.Destination)
-	titleLabel := Message{1, 0, title}
 	startMessage := fmt.Sprintf("start icmp_seq=%d", seq)
 
 	for {
@@ -216,7 +215,7 @@ func (g *GameInfo) playService(packetData string, seq int, kch chan termbox.Even
 			} else {
 				drawString((g.width-len(startMessage))/2, g.height/2, startMessage)
 			}
-			titleLabel.Draw()
+			drawString(1, 0, title)
 
 			descLabel := fmt.Sprintf("  icmp_seq=%d ttl=%d", seq, g.ttl)
 			drawString(g.width-len(descLabel)-1, 0, descLabel)
