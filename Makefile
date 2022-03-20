@@ -1,7 +1,7 @@
 SHELL = /bin/sh
 TARGET = './cmd/pong'
 VERSION = $(shell git describe --tags --abbrev=0)
-GOFLAGS = -ldflags "-X main.version=$(shell git describe --tags)"
+GOFLAGS = -ldflags "-X main.version=$(shell git describe --tags --dirty)"
 
 install:
 	go install $(GOFLAGS) $(TARGET)
