@@ -6,7 +6,7 @@ type VMessage struct {
 	str  string
 }
 
-func (m *VMessage) Draw() {
+func (m VMessage) Draw() {
 	runes := []rune(m.str)
 	size := len(runes)
 	for h := 0; h < m.h; h++ {

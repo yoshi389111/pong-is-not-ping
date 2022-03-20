@@ -37,6 +37,6 @@ func (m *PongMode) Set(mode int) {
 	}
 }
 
-func (m *PongMode) Get() int {
+func (m PongMode) Get() int {
 	return m.mode
 }

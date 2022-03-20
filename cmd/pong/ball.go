@@ -5,6 +5,26 @@ type Ball struct {
 	dx, dy float32
 	points []Point
 	str    string
+
+	ballWait  int
+	ballSpeed int
+}
+
+func DecideDy(y int) float32 {
+	switch {
+	case y <= -1:
+		return -1
+	case y == 0:
+		return -0.5
+	case y == 1:
+		return -0.25
+	case y == 2:
+		return 0.25
+	case y == 3:
+		return 0.5
+	default:
+		return 1
+	}
 }
 
 func NewBall(x, y int, dx, dy float32, str string) *Ball {
@@ -20,17 +40,39 @@ func NewBall(x, y int, dx, dy float32, str string) *Ball {
 		dy:     dy,
 		str:    str,
 		points: points,
+
+		ballWait:  BALL_WAIT_MAX,
+		ballSpeed: 0,
 	}
 }
 
-func (o *Ball) moveNext() {
-	o.fx += o.dx
-	o.fy += o.dy
-	point := Point{int(o.fx), int(o.fy)}
-	o.points = append([]Point{point}, o.points[:len(o.points)-1]...)
+func (o *Ball) Move() bool {
+	o.ballWait--
+	if o.ballWait <= 0 {
+		o.ballWait = BALL_WAIT_MAX - o.ballSpeed
+
+		o.fx += o.dx
+		o.fy += o.dy
+		point := Point{int(o.fx), int(o.fy)}
+		o.points = append([]Point{point}, o.points[:len(o.points)-1]...)
+
+		return true
+	} else {
+		return false
+	}
 }
 
-func (o *Ball) Point() Point {
+func (o *Ball) SpeedUp() {
+	if o.ballSpeed+1 < BALL_WAIT_MAX {
+		o.ballSpeed++
+	}
+}
+
+func (o Ball) Speed() int {
+	return BALL_WAIT_MAX - o.ballSpeed
+}
+
+func (o Ball) Point() Point {
 	return o.points[0]
 }
 
@@ -41,7 +83,7 @@ func (o *Ball) Set(x, y int, dx, dy float32) {
 	o.points[0].Y = y
 }
 
-func (o *Ball) Draw() {
+func (o Ball) Draw() {
 	runes := []rune(o.str)
 	for i := len(o.points) - 1; 0 <= i; i -= 1 {
 		ch := runes[i]
