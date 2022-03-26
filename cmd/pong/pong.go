@@ -25,6 +25,16 @@ const (
 
 	TERM_WIDTH_MIN  = 30
 	TERM_HEIGHT_MIN = 15
+
+	TOP_HEIGHT = 1
+)
+
+type Mode int
+
+const (
+	MODE_OPENING_MSG Mode = iota
+	MODE_PLAYING
+	MODE_RESULT_MSG
 )
 
 type PongResult struct {
@@ -34,24 +44,8 @@ type PongResult struct {
 }
 
 type GameInfo struct {
-	// terminal
-
-	width  int
-	height int
-	narrow bool
-
-	// paddle positions
-
 	cpuY int
 	usrY int
-
-	// status
-
-	cpuWait   int
-	ttl       int
-	startTiem time.Time
-
-	mode PongMode
 }
 
 func timerEventLoop(tch chan bool) {
@@ -77,112 +71,122 @@ func drawString(x, y int, str string) {
 	}
 }
 
-func (g GameInfo) newBall(packetData string) *Ball {
-	y := rand.Intn(g.height/3) + g.height/3
-	dy := DecideDy(rand.Intn(4))
-	return NewBall(6, y, 1, dy, packetData)
-}
-
-func (g GameInfo) isInsidePaddleY(y int) bool {
-	return 1 < y && y+PADDLE_HEIGHT <= g.height-2
-}
-
-func (g GameInfo) correctPaddleY(y int) int {
-	if g.isInsidePaddleY(y) {
-		return y
-	} else {
-		return (g.height - PADDLE_HEIGHT) / 2
-	}
-}
-
-func (g *GameInfo) moveCpu(cpu *Paddle, ball Ball) {
-	ballDx := ball.dx
-	ballPoint := ball.Point()
-
-	var bestY int
-	if ballDx < 0 && ballPoint.X < g.width/2 {
-		// Chase the ball
-		bestY = ballPoint.Y
-	} else if rand.Intn(2) == 1 {
-		// Move between user and ball
-		ballY := ballPoint.Y
-		usrY := g.usrY + PADDLE_HEIGHT/2
-		bestY = (usrY + ballY) / 2
-	} else {
-		// Not moving
-		return
-	}
-
-	paddleCenterY := cpu.y + cpu.h/2 - g.ttl%2
-	var cpuDy int
-	if bestY < paddleCenterY && g.isInsidePaddleY(cpu.y-1) {
-		cpuDy = -1
-	} else if paddleCenterY < bestY && g.isInsidePaddleY(cpu.y+1) {
-		cpuDy = 1
-	} else {
-		return
-	}
-	cpu.MoveY(cpuDy)
-	g.cpuY = cpu.y
-}
-
-func (g *GameInfo) moveUsr(usr *Paddle, dy int) {
-	var usrDy int
-	if dy < 0 && g.isInsidePaddleY(usr.y-1) {
-		usrDy = -1
-	} else if 0 < dy && g.isInsidePaddleY(usr.y+1) {
-		usrDy = 1
-	} else {
-		return
-	}
-	usr.MoveY(usrDy)
-	g.usrY = usr.y
-}
-
-func (g *GameInfo) adjustSize() {
-	termbox.Clear(termbox.ColorDefault, termbox.ColorDefault)
-	g.width, g.height = termbox.Size()
-	g.narrow = g.width < TERM_WIDTH_MIN || g.height < TERM_HEIGHT_MIN
-}
-
-func (g *GameInfo) initStatus() {
-	g.cpuWait = CPU_WAIT_MAX
-	g.ttl = opts.TimeToLive
-	g.startTiem = time.Now()
-	g.mode.Set(MODE_OPENING_MSG)
-}
-
 // play service.
 func (g *GameInfo) playService(packetData string, seq int, kch chan termbox.Event, tch chan bool) (result *PongResult, err error) {
 
-	g.adjustSize()
-	g.initStatus()
-	ball := g.newBall(packetData)
+	ballWait, bch := NewClockWait(BALL_WAIT_MAX)
+	cpuWait, cch := NewClockWait(CPU_WAIT_MAX)
+	timer, och := NewOnceTimer()
+
+	var ball *Ball
+	var topWall, bottomWall Wall
+	var leftWall, localhostLabel VMessage
+	var cpuPaddle, usrPaddle Paddle
+	var startTime time.Time
+	var ttl int
+	var width, height int
+	var narrow bool
+
+	bottomHeight := func() int { return height - 2 }
+
+	isInsidePaddleY := func(y int) bool {
+		return TOP_HEIGHT < y && y+PADDLE_HEIGHT <= bottomHeight()
+	}
+
+	correctPaddleY := func(y int) int {
+		if isInsidePaddleY(y) {
+			return y
+		} else {
+			return (height - PADDLE_HEIGHT) / 2
+		}
+	}
+
+	moveCpu := func() {
+		ballPoint := ball.Point()
+		var bestY int
+		if ball.dx < 0 && ballPoint.X < width/2 {
+			// Chase the ball
+			bestY = ballPoint.Y
+		} else if rand.Intn(2) == 1 {
+			// Move between user and ball
+			ballY := ballPoint.Y
+			usrY := g.usrY + PADDLE_HEIGHT/2
+			bestY = (usrY + ballY) / 2
+		} else {
+			// Not moving
+			return
+		}
+
+		centerY := cpuPaddle.y + cpuPaddle.h/2 - ttl%2
+		var cpuDy int
+		if bestY < centerY && isInsidePaddleY(cpuPaddle.y-1) {
+			cpuDy = -1
+		} else if centerY < bestY && isInsidePaddleY(cpuPaddle.y+1) {
+			cpuDy = 1
+		} else {
+			return
+		}
+		cpuPaddle.MoveY(cpuDy)
+		g.cpuY = cpuPaddle.y
+	}
+
+	moveUsr := func(dy int) {
+		if isInsidePaddleY(usrPaddle.y + dy) {
+			usrPaddle.MoveY(dy)
+			g.usrY = usrPaddle.y
+		}
+	}
+
+	var mode Mode
+	setMode := func(m Mode) {
+		mode = m
+		switch mode {
+		case MODE_OPENING_MSG, MODE_RESULT_MSG:
+			timer.Set(MSG_WAIT_MAX)
+		}
+	}
+
+	initGame := func() {
+		termbox.Clear(termbox.ColorDefault, termbox.ColorDefault)
+		width, height = termbox.Size()
+		narrow = width < TERM_WIDTH_MIN || height < TERM_HEIGHT_MIN
+
+		ballY := rand.Intn(height/3) + height/3
+		ballDy := DecideDy(rand.Intn(4))
+		ball = NewBall(6, ballY, 1, ballDy, packetData)
+		ballWait.Reset()
+
+		topWall = Wall{1, width, '='}
+		bottomWall = Wall{bottomHeight(), width, '='}
+		leftWall = VMessage{0, TOP_HEIGHT + 1, bottomHeight() - 1 - TOP_HEIGHT, "|"}
+		localhostLabel = VMessage{0, (height - len(LOCALHOST)) / 2, len(LOCALHOST), LOCALHOST}
+
+		cpuY := correctPaddleY(g.cpuY)
+		usrY := correctPaddleY(g.usrY)
+		cpuPaddle = Paddle{3, cpuY, PADDLE_WIDTH, PADDLE_HEIGHT, "||G|W|||"}
+		usrPaddle = Paddle{width - 4, usrY, PADDLE_WIDTH, PADDLE_HEIGHT, "|"}
+
+		ttl = opts.TimeToLive
+		startTime = time.Now()
+		setMode(MODE_OPENING_MSG)
+	}
 
 	title := fmt.Sprintf("pong %s", opts.Args.Destination)
 	openingMessage := fmt.Sprintf("start icmp_seq=%d", seq)
 	var resultMessage string
 
+	initGame()
+
 	for {
 		termbox.Clear(termbox.ColorDefault, termbox.ColorDefault)
 
-		topWall := Wall{1, g.width, '='}
-		bottomWall := Wall{g.height - 2, g.width, '='}
-		leftWall := VMessage{0, 2, g.height - 4, "|"}
-		localhostLabel := VMessage{0, (g.height - len(LOCALHOST)) / 2, 11, LOCALHOST}
-
-		cpuY := g.correctPaddleY(g.cpuY)
-		usrY := g.correctPaddleY(g.usrY)
-		cpuPaddle := Paddle{3, cpuY, PADDLE_WIDTH, PADDLE_HEIGHT, "||G|W|||"}
-		usrPaddle := Paddle{g.width - 4, usrY, PADDLE_WIDTH, PADDLE_HEIGHT, "|"}
-
-		if g.narrow {
-			if g.mode.Get() == MODE_OPENING_MSG {
+		if narrow {
+			if mode == MODE_OPENING_MSG {
 				warningMessage := "This term is too narrow."
-				drawString((g.width-len(warningMessage))/2, g.height/2, warningMessage)
+				drawString((width-len(warningMessage))/2, height/2, warningMessage)
 			} else {
 				err := fmt.Errorf("This term(%dx%d) is too narrow. Requires %dx%d area",
-					g.width, g.height, TERM_WIDTH_MIN, TERM_HEIGHT_MIN)
+					width, height, TERM_WIDTH_MIN, TERM_HEIGHT_MIN)
 				return nil, err
 			}
 		} else {
@@ -193,29 +197,34 @@ func (g *GameInfo) playService(packetData string, seq int, kch chan termbox.Even
 			cpuPaddle.Draw()
 			usrPaddle.Draw()
 
-			switch g.mode.Get() {
+			switch mode {
 			case MODE_PLAYING:
 				ball.Draw()
 			case MODE_OPENING_MSG:
-				drawString((g.width-len(openingMessage))/2, g.height/2, openingMessage)
+				drawString((width-len(openingMessage))/2, height/2, openingMessage)
 			case MODE_RESULT_MSG:
 				ball.Draw()
-				drawString((g.width-len(resultMessage))/2, g.height/2, resultMessage)
+				drawString((width-len(resultMessage))/2, height/2, resultMessage)
 			}
 
 			drawString(1, 0, title)
 
-			descLabel := fmt.Sprintf("  icmp_seq=%d ttl=%d", seq, g.ttl)
-			drawString(g.width-len(descLabel)-1, 0, descLabel)
+			descLabel := fmt.Sprintf("  icmp_seq=%d ttl=%d", seq, ttl)
+			drawString(width-len(descLabel)-1, 0, descLabel)
 
-			bps := int(8 * time.Second / (time.Millisecond * time.Duration(TIME_SPAN*ball.Speed())))
+			bps := int(8 * time.Second / (time.Millisecond * time.Duration(TIME_SPAN*ballWait.Speed())))
 			bpsLabel := fmt.Sprintf("Speed: %dbps", bps)
-			drawString(1, g.height-1, bpsLabel)
+			drawString(1, height-1, bpsLabel)
 		}
 
 		termbox.Flush()
 
 		select {
+		case <-tch:
+			ballWait.Tick()
+			cpuWait.Tick()
+			timer.Tick()
+
 		case ev := <-kch:
 			switch ev.Type {
 			case termbox.EventKey:
@@ -223,65 +232,70 @@ func (g *GameInfo) playService(packetData string, seq int, kch chan termbox.Even
 				case termbox.KeyCtrlC:
 					return nil, nil
 				case termbox.KeyArrowUp:
-					g.moveUsr(&usrPaddle, -1)
+					moveUsr(-1)
 				case termbox.KeyArrowDown:
-					g.moveUsr(&usrPaddle, 1)
+					moveUsr(1)
 				}
-
 			case termbox.EventResize:
-				g.adjustSize()
-				g.initStatus()
-				ball = g.newBall(packetData)
+				initGame()
 				continue
 			}
 
-		case <-tch:
-			g.mode.Update()
-			switch g.mode.Get() {
-			case MODE_END:
+		case <-och:
+			switch mode {
+			case MODE_OPENING_MSG:
+				// end of opening message display
+				setMode(MODE_PLAYING)
+			case MODE_RESULT_MSG:
+				// end of result message display
 				return
+			}
+
+		case <-cch:
+			if mode == MODE_PLAYING {
+				// cpu is movable
+				moveCpu()
+			}
+
+		case <-bch:
+			// ball is movable
+			switch mode {
 			case MODE_OPENING_MSG:
 				continue
+			case MODE_PLAYING:
+				ball.Move()
 			case MODE_RESULT_MSG:
 				ball.Move()
 				continue
 			}
 
-			g.cpuWait--
-			if g.cpuWait <= 0 {
-				g.cpuWait = CPU_WAIT_MAX
-				g.moveCpu(&cpuPaddle, *ball)
+			topWall.Reflect(ball)
+			bottomWall.Reflect(ball)
+			if usrPaddle.Reflect(ball) && rand.Intn(2) == 1 {
+				ballWait.SpeedUp()
 			}
+			if cpuPaddle.Reflect(ball) {
+				ttl--
+				if ttl <= 0 {
+					// lose(ttl=0)
+					return &PongResult{}, nil
+				}
+			}
+			topWall.Reflect(ball)
+			bottomWall.Reflect(ball)
+			ballX := ball.Point().X
+			if ballX < 1 {
+				// win
+				time := int(time.Since(startTime) / time.Second)
+				result, err = &PongResult{true, ttl, time}, nil
+				resultMessage = fmt.Sprintf("received. time=%d", time)
+				setMode(MODE_RESULT_MSG)
 
-			if ball.Move() {
-				topWall.Reflect(ball)
-				bottomWall.Reflect(ball)
-				if usrPaddle.Reflect(ball) && rand.Intn(2) == 1 {
-					ball.SpeedUp()
-				}
-				if cpuPaddle.Reflect(ball) {
-					g.ttl--
-					if g.ttl <= 0 {
-						// lose(ttl=0)
-						return &PongResult{}, nil
-					}
-				}
-				topWall.Reflect(ball)
-				bottomWall.Reflect(ball)
-				ballX := ball.Point().X
-				if ballX < 1 {
-					// win
-					time := int(time.Since(g.startTiem) / time.Second)
-					result, err = &PongResult{true, g.ttl, time}, nil
-					resultMessage = fmt.Sprintf("received. time=%d", time)
-					g.mode.Set(MODE_RESULT_MSG)
-
-				} else if g.width-1 <= ballX {
-					// lose
-					result, err = &PongResult{}, nil
-					resultMessage = "request timed out"
-					g.mode.Set(MODE_RESULT_MSG)
-				}
+			} else if width-1 <= ballX {
+				// lose
+				result, err = &PongResult{}, nil
+				resultMessage = "request timed out"
+				setMode(MODE_RESULT_MSG)
 			}
 		}
 	}

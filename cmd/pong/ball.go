@@ -46,30 +46,11 @@ func NewBall(x, y int, dx, dy float32, str string) *Ball {
 	}
 }
 
-func (o *Ball) Move() bool {
-	o.ballWait--
-	if o.ballWait <= 0 {
-		o.ballWait = BALL_WAIT_MAX - o.ballSpeed
-
-		o.fx += o.dx
-		o.fy += o.dy
-		point := Point{int(o.fx), int(o.fy)}
-		o.points = append([]Point{point}, o.points[:len(o.points)-1]...)
-
-		return true
-	} else {
-		return false
-	}
-}
-
-func (o *Ball) SpeedUp() {
-	if o.ballSpeed+1 < BALL_WAIT_MAX {
-		o.ballSpeed++
-	}
-}
-
-func (o Ball) Speed() int {
-	return BALL_WAIT_MAX - o.ballSpeed
+func (o *Ball) Move() {
+	o.fx += o.dx
+	o.fy += o.dy
+	point := Point{int(o.fx), int(o.fy)}
+	o.points = append([]Point{point}, o.points[:len(o.points)-1]...)
 }
 
 func (o Ball) Point() Point {
