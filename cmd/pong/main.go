@@ -38,9 +38,9 @@ type Options struct {
 	} `positional-args:"yes" required:"yes"`
 }
 
-var opts Options
-
 func main() {
+
+	var opts Options
 
 	parser := flags.NewParser(&opts, flags.PassDoubleDash)
 	parser.Usage = "[options]"
@@ -76,5 +76,5 @@ func main() {
 		os.Exit(1)
 	}
 
-	pong()
+	pong(opts)
 }

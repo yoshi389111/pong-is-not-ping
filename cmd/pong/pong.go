@@ -72,7 +72,7 @@ func drawString(x, y int, str string) {
 }
 
 // play service.
-func (g *GameInfo) playService(packetData string, seq int, kch chan termbox.Event, tch chan bool) (result *PongResult, err error) {
+func (g *GameInfo) playService(packetData string, seq int, opts Options) (result *PongResult, err error) {
 
 	ballWait, bch := NewClockWait(BALL_WAIT_MAX)
 	cpuWait, cch := NewClockWait(CPU_WAIT_MAX)
@@ -174,6 +174,11 @@ func (g *GameInfo) playService(packetData string, seq int, kch chan termbox.Even
 	title := fmt.Sprintf("pong %s", opts.Args.Destination)
 	openingMessage := fmt.Sprintf("start icmp_seq=%d", seq)
 	var resultMessage string
+
+	kch := make(chan termbox.Event)
+	tch := make(chan bool)
+	go keyEventLoop(kch)
+	go timerEventLoop(tch)
 
 	initGame()
 
@@ -302,7 +307,7 @@ func (g *GameInfo) playService(packetData string, seq int, kch chan termbox.Even
 }
 
 // play game.
-func playGame(packetData string) ([]PongResult, error) {
+func playGame(packetData string, opts Options) ([]PongResult, error) {
 	err := termbox.Init()
 	if err != nil {
 		return nil, err
@@ -312,17 +317,12 @@ func playGame(packetData string) ([]PongResult, error) {
 
 	g := GameInfo{}
 
-	kch := make(chan termbox.Event)
-	tch := make(chan bool)
-	go keyEventLoop(kch)
-	go timerEventLoop(tch)
-
 	results := make([]PongResult, 0, opts.Count)
 	for i := 0; i < opts.Count; i += 1 {
 
 		seq := i + 1
 		var result *PongResult
-		result, err = g.playService(packetData, seq, kch, tch)
+		result, err = g.playService(packetData, seq, opts)
 		if err != nil {
 			return nil, err
 		}
@@ -336,7 +336,7 @@ func playGame(packetData string) ([]PongResult, error) {
 }
 
 // main of pong
-func pong() {
+func pong(opts Options) {
 	rand.Seed(time.Now().UnixNano())
 
 	addr, err := net.ResolveIPAddr("ip", opts.Args.Destination)
@@ -355,7 +355,7 @@ func pong() {
 	startTiem := time.Now()
 
 	// start pong
-	results, err := playGame(packetData)
+	results, err := playGame(packetData, opts)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
