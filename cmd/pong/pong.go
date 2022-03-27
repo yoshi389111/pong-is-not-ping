@@ -15,6 +15,7 @@ const (
 	BALL_WAIT_MAX = 9   // 90 [ms] = 9 * TIME_SPAN
 	CPU_WAIT_MAX  = 9   // 90 [ms]
 	MSG_WAIT_MAX  = 150 // 1500 [ms]
+	STARTING_WAIT = 100 // 1000 [ms]
 
 	PACKET_HEADER = "ICMP ECHO"
 
@@ -33,6 +34,7 @@ type Mode int
 
 const (
 	MODE_OPENING_MSG Mode = iota
+	MODE_STARTING
 	MODE_PLAYING
 	MODE_RESULT_MSG
 )
@@ -143,6 +145,8 @@ func (g *GameInfo) playService(packetData string, seq int, opts Options) (result
 		switch mode {
 		case MODE_OPENING_MSG, MODE_RESULT_MSG:
 			timer.Set(MSG_WAIT_MAX)
+		case MODE_STARTING:
+			timer.Set(STARTING_WAIT)
 		}
 	}
 
@@ -153,7 +157,7 @@ func (g *GameInfo) playService(packetData string, seq int, opts Options) (result
 
 		ballY := rand.Intn(height/3) + height/3
 		ballDy := DecideDy(rand.Intn(4))
-		ball = NewBall(6, ballY, 1, ballDy, packetData)
+		ball = NewBall(1, ballY, 1, ballDy, packetData)
 		ballWait.Reset()
 
 		topWall = Wall{1, width, '='}
@@ -199,16 +203,19 @@ func (g *GameInfo) playService(packetData string, seq int, opts Options) (result
 			bottomWall.Draw()
 			leftWall.Draw()
 			localhostLabel.Draw()
-			cpuPaddle.Draw()
 			usrPaddle.Draw()
 
 			switch mode {
-			case MODE_PLAYING:
-				ball.Draw()
 			case MODE_OPENING_MSG:
 				drawString((width-len(openingMessage))/2, height/2, openingMessage)
+			case MODE_STARTING:
+				ball.Draw()
+			case MODE_PLAYING:
+				ball.Draw()
+				cpuPaddle.Draw()
 			case MODE_RESULT_MSG:
 				ball.Draw()
+				cpuPaddle.Draw()
 				drawString((width-len(resultMessage))/2, height/2, resultMessage)
 			}
 
@@ -250,6 +257,9 @@ func (g *GameInfo) playService(packetData string, seq int, opts Options) (result
 			switch mode {
 			case MODE_OPENING_MSG:
 				// end of opening message display
+				setMode(MODE_STARTING)
+			case MODE_STARTING:
+				// end of starting
 				setMode(MODE_PLAYING)
 			case MODE_RESULT_MSG:
 				// end of result message display
@@ -267,7 +277,7 @@ func (g *GameInfo) playService(packetData string, seq int, opts Options) (result
 			switch mode {
 			case MODE_OPENING_MSG:
 				continue
-			case MODE_PLAYING:
+			case MODE_STARTING, MODE_PLAYING:
 				ball.Move()
 			case MODE_RESULT_MSG:
 				ball.Move()
@@ -279,7 +289,7 @@ func (g *GameInfo) playService(packetData string, seq int, opts Options) (result
 			if usrPaddle.Reflect(ball) && rand.Intn(2) == 1 {
 				ballWait.SpeedUp()
 			}
-			if cpuPaddle.Reflect(ball) {
+			if mode == MODE_PLAYING && cpuPaddle.Reflect(ball) {
 				ttl--
 				if ttl <= 0 {
 					// lose(ttl=0)
