@@ -33,9 +33,13 @@ const (
 type Mode int
 
 const (
+	// show opening message
 	MODE_OPENING_MSG Mode = iota
+	// serve ball
 	MODE_STARTING
+	// playing
 	MODE_PLAYING
+	// show result message
 	MODE_RESULT_MSG
 )
 
@@ -173,6 +177,7 @@ func (g *GameInfo) playService(packetData string, seq int, opts Options) (result
 	var resultMessage string
 
 	ticker := time.NewTicker(time.Duration(TIME_SPAN) * time.Millisecond)
+	defer ticker.Stop()
 
 	kch := make(chan termbox.Event)
 	go keyEventLoop(kch)
