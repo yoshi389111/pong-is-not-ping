@@ -50,13 +50,6 @@ type GameInfo struct {
 	usrY int
 }
 
-func timerEventLoop(tch chan bool) {
-	for {
-		tch <- true
-		time.Sleep(time.Duration(TIME_SPAN) * time.Millisecond)
-	}
-}
-
 func keyEventLoop(kch chan termbox.Event) {
 	for {
 		kch <- termbox.PollEvent()
@@ -64,7 +57,7 @@ func keyEventLoop(kch chan termbox.Event) {
 }
 
 func drawChar(x, y int, ch rune) {
-	termbox.SetCell(x, y, ch, termbox.ColorDefault, termbox.ColorDefault)
+	termbox.SetChar(x, y, ch)
 }
 
 func drawString(x, y int, str string) {
@@ -179,10 +172,10 @@ func (g *GameInfo) playService(packetData string, seq int, opts Options) (result
 	openingMessage := fmt.Sprintf("start icmp_seq=%d", seq)
 	var resultMessage string
 
+	ticker := time.NewTicker(time.Duration(TIME_SPAN) * time.Millisecond)
+
 	kch := make(chan termbox.Event)
-	tch := make(chan bool)
 	go keyEventLoop(kch)
-	go timerEventLoop(tch)
 
 	initGame()
 
@@ -232,7 +225,7 @@ func (g *GameInfo) playService(packetData string, seq int, opts Options) (result
 		termbox.Flush()
 
 		select {
-		case <-tch:
+		case <-ticker.C:
 			ballWait.Tick()
 			cpuWait.Tick()
 			timer.Tick()
