@@ -9,7 +9,7 @@ type VMessage struct {
 func (m VMessage) Draw() {
 	runes := []rune(m.str)
 	size := len(runes)
-	for h := 0; h < m.h; h++ {
-		drawChar(m.x, m.y+h, runes[h%size])
+	for y := 0; y < m.h; y++ {
+		drawChar(m.x, m.y+y, runes[y%size])
 	}
 }

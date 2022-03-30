@@ -27,13 +27,13 @@ func DecideDy(y int) float32 {
 	}
 }
 
-func NewBall(x, y int, dx, dy float32, str string) *Ball {
+func NewBall(x, y int, dx, dy float32, str string) Ball {
 	l := len([]rune(str))
 	points := make([]Point, 0, l)
 	for i := 0; i < l; i += 1 {
 		points = append(points, Point{x, y})
 	}
-	return &Ball{
+	return Ball{
 		fx:     float32(x),
 		fy:     float32(y),
 		dx:     dx,

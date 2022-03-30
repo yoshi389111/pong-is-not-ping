@@ -7,7 +7,7 @@ import (
 	"os"
 	"time"
 
-	"github.com/nsf/termbox-go"
+	"github.com/gdamore/tcell/v2/termbox"
 )
 
 const (
@@ -41,6 +41,8 @@ const (
 	MODE_PLAYING
 	// show result message
 	MODE_RESULT_MSG
+	// exit
+	MODE_EXIT
 )
 
 type PongResult struct {
@@ -49,19 +51,36 @@ type PongResult struct {
 	time     int
 }
 
-type GameInfo struct {
-	cpuY int
-	usrY int
-}
+var (
+	lastCpuY int
+	lastUsrY int
 
-func keyEventLoop(kch chan termbox.Event) {
+	ball                     Ball
+	topWall, bottomWall      Wall
+	leftWall, localhostLabel VMessage
+	cpuPaddle, usrPaddle     Paddle
+
+	startTime     time.Time
+	ttl           int
+	width, height int
+	packetData    string
+	mode          Mode
+
+	ballWait ClockWait
+	timer    OnceTimer
+
+	// key & resize chanel
+	kch chan termbox.Event
+)
+
+func keyEventLoop() {
 	for {
 		kch <- termbox.PollEvent()
 	}
 }
 
 func drawChar(x, y int, ch rune) {
-	termbox.SetChar(x, y, ch)
+	termbox.SetCell(x, y, ch, termbox.ColorDefault, termbox.ColorDefault)
 }
 
 func drawString(x, y int, str string) {
@@ -70,107 +89,107 @@ func drawString(x, y int, str string) {
 	}
 }
 
+func bottomHeight() int { return height - 2 }
+
+func isNarrow() bool { return width < TERM_WIDTH_MIN || height < TERM_HEIGHT_MIN }
+
+func isInsidePaddleY(y int) bool {
+	return TOP_HEIGHT < y && y+PADDLE_HEIGHT <= bottomHeight()
+}
+
+func correctPaddleY(y int) int {
+	if isInsidePaddleY(y) {
+		return y
+	} else {
+		// Centered the first time or if it overflows during resizing
+		return (height - PADDLE_HEIGHT) / 2
+	}
+}
+
+func sign(num int) int {
+	switch {
+	case 0 < num:
+		return 1
+	case num < 0:
+		return -1
+	default:
+		return 0
+	}
+}
+
+func moveCpu() {
+	ballPoint := ball.Point()
+	var bestY int
+	if ball.dx < 0 && ballPoint.X < width/2 {
+		// Chase the ball
+		bestY = ballPoint.Y
+	} else if rand.Intn(2) == 1 {
+		// Move between user and ball
+		ballY := ballPoint.Y
+		usrY := lastUsrY + PADDLE_HEIGHT/2
+		bestY = (usrY + ballY) / 2
+	} else {
+		// Not moving
+		return
+	}
+
+	centerY := cpuPaddle.y + cpuPaddle.h/2 - ttl%2
+	dy := sign(bestY - centerY)
+	if dy != 0 && isInsidePaddleY(cpuPaddle.y+dy) {
+		cpuPaddle.MoveY(dy)
+		lastCpuY = cpuPaddle.y
+	}
+}
+
+func moveUsr(dy int) {
+	if isInsidePaddleY(usrPaddle.y + dy) {
+		usrPaddle.MoveY(dy)
+		lastUsrY = usrPaddle.y
+	}
+}
+
+func setMode(m Mode) {
+	mode = m
+	switch mode {
+	case MODE_OPENING_MSG:
+		timer.Set(MSG_WAIT_MAX, MODE_STARTING)
+	case MODE_STARTING:
+		timer.Set(STARTING_WAIT, MODE_PLAYING)
+	case MODE_RESULT_MSG:
+		timer.Set(MSG_WAIT_MAX, MODE_EXIT)
+	}
+}
+
+func initGame() {
+	termbox.Clear(termbox.ColorDefault, termbox.ColorDefault)
+	width, height = termbox.Size()
+
+	ballY := rand.Intn(height/3) + height/3
+	ballDy := DecideDy(rand.Intn(4))
+	ball = NewBall(1, ballY, 1, ballDy, packetData)
+	ballWait.Reset()
+
+	topWall = Wall{1, width, '='}
+	bottomWall = Wall{bottomHeight(), width, '='}
+	leftWall = VMessage{0, TOP_HEIGHT + 1, bottomHeight() - 1 - TOP_HEIGHT, "|"}
+	localhostLabel = VMessage{0, (height - len(LOCALHOST)) / 2, len(LOCALHOST), LOCALHOST}
+
+	cpuY := correctPaddleY(lastCpuY)
+	usrY := correctPaddleY(lastUsrY)
+	cpuPaddle = Paddle{3, cpuY, PADDLE_WIDTH, PADDLE_HEIGHT, "||G|W|||"}
+	usrPaddle = Paddle{width - 4, usrY, PADDLE_WIDTH, PADDLE_HEIGHT, "|"}
+
+	ttl = opts.TimeToLive
+	startTime = time.Now()
+	setMode(MODE_OPENING_MSG)
+}
+
 // play service.
-func (g *GameInfo) playService(packetData string, seq int, opts Options) (result *PongResult, err error) {
+func playService(seq int) (result *PongResult, err error) {
 
-	ballWait, bch := NewClockWait(BALL_WAIT_MAX)
-	cpuWait, cch := NewClockWait(CPU_WAIT_MAX)
-	timer, och := NewOnceTimer()
-
-	var ball *Ball
-	var topWall, bottomWall Wall
-	var leftWall, localhostLabel VMessage
-	var cpuPaddle, usrPaddle Paddle
-	var startTime time.Time
-	var ttl int
-	var width, height int
-	var narrow bool
-
-	bottomHeight := func() int { return height - 2 }
-
-	isInsidePaddleY := func(y int) bool {
-		return TOP_HEIGHT < y && y+PADDLE_HEIGHT <= bottomHeight()
-	}
-
-	correctPaddleY := func(y int) int {
-		if isInsidePaddleY(y) {
-			return y
-		} else {
-			return (height - PADDLE_HEIGHT) / 2
-		}
-	}
-
-	moveCpu := func() {
-		ballPoint := ball.Point()
-		var bestY int
-		if ball.dx < 0 && ballPoint.X < width/2 {
-			// Chase the ball
-			bestY = ballPoint.Y
-		} else if rand.Intn(2) == 1 {
-			// Move between user and ball
-			ballY := ballPoint.Y
-			usrY := g.usrY + PADDLE_HEIGHT/2
-			bestY = (usrY + ballY) / 2
-		} else {
-			// Not moving
-			return
-		}
-
-		centerY := cpuPaddle.y + cpuPaddle.h/2 - ttl%2
-		var cpuDy int
-		if bestY < centerY && isInsidePaddleY(cpuPaddle.y-1) {
-			cpuDy = -1
-		} else if centerY < bestY && isInsidePaddleY(cpuPaddle.y+1) {
-			cpuDy = 1
-		} else {
-			return
-		}
-		cpuPaddle.MoveY(cpuDy)
-		g.cpuY = cpuPaddle.y
-	}
-
-	moveUsr := func(dy int) {
-		if isInsidePaddleY(usrPaddle.y + dy) {
-			usrPaddle.MoveY(dy)
-			g.usrY = usrPaddle.y
-		}
-	}
-
-	var mode Mode
-	setMode := func(m Mode) {
-		mode = m
-		switch mode {
-		case MODE_OPENING_MSG, MODE_RESULT_MSG:
-			timer.Set(MSG_WAIT_MAX)
-		case MODE_STARTING:
-			timer.Set(STARTING_WAIT)
-		}
-	}
-
-	initGame := func() {
-		termbox.Clear(termbox.ColorDefault, termbox.ColorDefault)
-		width, height = termbox.Size()
-		narrow = width < TERM_WIDTH_MIN || height < TERM_HEIGHT_MIN
-
-		ballY := rand.Intn(height/3) + height/3
-		ballDy := DecideDy(rand.Intn(4))
-		ball = NewBall(1, ballY, 1, ballDy, packetData)
-		ballWait.Reset()
-
-		topWall = Wall{1, width, '='}
-		bottomWall = Wall{bottomHeight(), width, '='}
-		leftWall = VMessage{0, TOP_HEIGHT + 1, bottomHeight() - 1 - TOP_HEIGHT, "|"}
-		localhostLabel = VMessage{0, (height - len(LOCALHOST)) / 2, len(LOCALHOST), LOCALHOST}
-
-		cpuY := correctPaddleY(g.cpuY)
-		usrY := correctPaddleY(g.usrY)
-		cpuPaddle = Paddle{3, cpuY, PADDLE_WIDTH, PADDLE_HEIGHT, "||G|W|||"}
-		usrPaddle = Paddle{width - 4, usrY, PADDLE_WIDTH, PADDLE_HEIGHT, "|"}
-
-		ttl = opts.TimeToLive
-		startTime = time.Now()
-		setMode(MODE_OPENING_MSG)
-	}
+	ballWait = NewClockWait(BALL_WAIT_MAX)
+	cpuWait := NewClockWait(CPU_WAIT_MAX)
+	timer = NewOnceTimer()
 
 	title := fmt.Sprintf("pong %s", opts.Args.Destination)
 	openingMessage := fmt.Sprintf("start icmp_seq=%d", seq)
@@ -179,15 +198,12 @@ func (g *GameInfo) playService(packetData string, seq int, opts Options) (result
 	ticker := time.NewTicker(time.Duration(TIME_SPAN) * time.Millisecond)
 	defer ticker.Stop()
 
-	kch := make(chan termbox.Event)
-	go keyEventLoop(kch)
-
 	initGame()
 
 	for {
 		termbox.Clear(termbox.ColorDefault, termbox.ColorDefault)
 
-		if narrow {
+		if isNarrow() {
 			if mode == MODE_OPENING_MSG {
 				warningMessage := "This term is too narrow."
 				drawString((width-len(warningMessage))/2, height/2, warningMessage)
@@ -251,26 +267,19 @@ func (g *GameInfo) playService(packetData string, seq int, opts Options) (result
 				continue
 			}
 
-		case <-och:
-			switch mode {
-			case MODE_OPENING_MSG:
-				// end of opening message display
-				setMode(MODE_STARTING)
-			case MODE_STARTING:
-				// end of starting
-				setMode(MODE_PLAYING)
-			case MODE_RESULT_MSG:
-				// end of result message display
+		case nextMode := <-timer.Ch:
+			if nextMode == MODE_EXIT {
 				return
 			}
+			setMode(nextMode)
 
-		case <-cch:
+		case <-cpuWait.Ch:
 			if mode == MODE_PLAYING {
 				// cpu is movable
 				moveCpu()
 			}
 
-		case <-bch:
+		case <-ballWait.Ch:
 			// ball is movable
 			switch mode {
 			case MODE_OPENING_MSG:
@@ -282,20 +291,20 @@ func (g *GameInfo) playService(packetData string, seq int, opts Options) (result
 				continue
 			}
 
-			topWall.Reflect(ball)
-			bottomWall.Reflect(ball)
-			if usrPaddle.Reflect(ball) && rand.Intn(2) == 1 {
+			topWall.Reflect(&ball)
+			bottomWall.Reflect(&ball)
+			if usrPaddle.Reflect(&ball) && rand.Intn(2) == 1 {
 				ballWait.SpeedUp()
 			}
-			if mode == MODE_PLAYING && cpuPaddle.Reflect(ball) {
+			if mode == MODE_PLAYING && cpuPaddle.Reflect(&ball) {
 				ttl--
 				if ttl <= 0 {
 					// lose(ttl=0)
 					return &PongResult{}, nil
 				}
 			}
-			topWall.Reflect(ball)
-			bottomWall.Reflect(ball)
+			topWall.Reflect(&ball)
+			bottomWall.Reflect(&ball)
 			ballX := ball.Point().X
 			if ballX < 1 {
 				// win
@@ -315,7 +324,7 @@ func (g *GameInfo) playService(packetData string, seq int, opts Options) (result
 }
 
 // play game.
-func playGame(packetData string, opts Options) ([]PongResult, error) {
+func playGame() ([]PongResult, error) {
 	err := termbox.Init()
 	if err != nil {
 		return nil, err
@@ -323,14 +332,15 @@ func playGame(packetData string, opts Options) ([]PongResult, error) {
 	defer termbox.Close()
 	termbox.HideCursor()
 
-	g := GameInfo{}
+	kch = make(chan termbox.Event)
+	go keyEventLoop()
 
 	results := make([]PongResult, 0, opts.Count)
 	for i := 0; i < opts.Count; i += 1 {
 
 		seq := i + 1
 		var result *PongResult
-		result, err = g.playService(packetData, seq, opts)
+		result, err = playService(seq)
 		if err != nil {
 			return nil, err
 		}
@@ -344,7 +354,7 @@ func playGame(packetData string, opts Options) ([]PongResult, error) {
 }
 
 // main of pong
-func pong(opts Options) {
+func pong() {
 	rand.Seed(time.Now().UnixNano())
 
 	addr, err := net.ResolveIPAddr("ip", opts.Args.Destination)
@@ -353,7 +363,6 @@ func pong(opts Options) {
 		os.Exit(1)
 	}
 
-	var packetData string
 	if len(opts.Padding) != 0 {
 		packetData = PACKET_HEADER + ":" + opts.Padding
 	} else {
@@ -363,7 +372,7 @@ func pong(opts Options) {
 	startTiem := time.Now()
 
 	// start pong
-	results, err := playGame(packetData, opts)
+	results, err := playGame()
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)

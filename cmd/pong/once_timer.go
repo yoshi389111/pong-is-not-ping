@@ -2,12 +2,13 @@ package main
 
 type OnceTimer struct {
 	waitCount int
-	ch        chan bool
+	nextMode  Mode
+	Ch        chan Mode
 }
 
-func NewOnceTimer() (*OnceTimer, chan bool) {
-	ch := make(chan bool)
-	return &OnceTimer{-1, ch}, ch
+func NewOnceTimer() OnceTimer {
+	ch := make(chan Mode)
+	return OnceTimer{-1, MODE_EXIT, ch}
 }
 
 func (o *OnceTimer) Tick() {
@@ -16,11 +17,12 @@ func (o *OnceTimer) Tick() {
 	} else if o.waitCount == 0 {
 		o.waitCount = -1
 		go func() {
-			o.ch <- true
+			o.Ch <- o.nextMode
 		}()
 	}
 }
 
-func (o *OnceTimer) Set(wait int) {
+func (o *OnceTimer) Set(wait int, nextMode Mode) {
 	o.waitCount = wait
+	o.nextMode = nextMode
 }

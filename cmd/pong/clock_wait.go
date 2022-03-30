@@ -4,12 +4,12 @@ type ClockWait struct {
 	waitMax   int
 	waitNow   int
 	waitCount int
-	ch        chan bool
+	Ch        chan bool
 }
 
-func NewClockWait(wait int) (*ClockWait, chan bool) {
+func NewClockWait(wait int) ClockWait {
 	ch := make(chan bool)
-	return &ClockWait{wait, wait, wait, ch}, ch
+	return ClockWait{wait, wait, wait, ch}
 }
 
 func (o *ClockWait) Tick() {
@@ -17,7 +17,7 @@ func (o *ClockWait) Tick() {
 	if o.waitCount <= 0 {
 		o.waitCount = o.waitNow
 		go func() {
-			o.ch <- true
+			o.Ch <- true
 		}()
 	}
 }
