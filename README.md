@@ -36,6 +36,11 @@ Arguments:
   <destination>:             dns name or ip address
 ```
 
+## Related Tech Blog Articles
+
+* dev.to [POng is Not pinG.](https://dev.to/yoshi389111/pong-is-not-ping-323d) English
+* qiita [Go言語でpingコマンドっぽい、でもpingコマンドじゃないpongコマンドを作ってみた](https://qiita.com/yoshi389111/items/a289f1c470616c5f10c4) Japanese
+
 ## Copyright and License
 
 (C) 2022 SATO, Yoshiyuki
