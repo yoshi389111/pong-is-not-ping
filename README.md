@@ -36,7 +36,7 @@ It's ping meets Pong — test your reflexes while staying true to the spirit of 
   - Stop after `<count>` replies. The default is 4.
 
 - `-t`, `--ttl=<ttl>`
-  - Define the time to live (TTL) for the packets. The default is 64
+  - Define the time to live (TTL) for the packets. The default is 64.
 
 - `-p`, `--padding=<pattern>`
   - Specify the contents of the padding byte.
