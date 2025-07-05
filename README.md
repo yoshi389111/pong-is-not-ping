@@ -1,4 +1,4 @@
-# PONG
+# PONG(6)
 
 ## NAME
 
