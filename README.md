@@ -22,7 +22,7 @@ The longer you rally the packets back and forth, the faster they travel, increas
 
 By default, the local host sends 4 ICMP ECHO packets (changeable with `-c`). When the last packet is returned or lost, or when the user quits the game, pong will display ping-style statistics summarizing the round-trip success and loss.
 
-It's ping meets pong — test your reflexes while staying true to the spirit of the network diagnostic classic.
+It's ping meets Pong — test your reflexes while staying true to the spirit of the network diagnostic classic.
 
 ## OPTIONS
 
@@ -72,8 +72,8 @@ go install github.com/yoshi389111/pong-is-not-ping/cmd/pong@latest
 ## SEE ALSO
 
 - Inspired by [kurehajime/pong-command](https://github.com/kurehajime/pong-command)
-- [POng is Not pinG. (dev.to)](https://dev.to/yoshi389111/pong-is-not-ping-323d) ― English article explaining this project
-- [Go言語でpingコマンドっぽい、でもpingコマンドじゃないpongコマンドを作ってみた (Qiita)](https://qiita.com/yoshi389111/items/a289f1c470616c5f10c4) ― Japanese article explaining this project
+- [POng is Not pinG. (dev.to)](https://dev.to/yoshi389111/pong-is-not-ping-323d) — English article explaining this project
+- [Go言語でpingコマンドっぽい、でもpingコマンドじゃないpongコマンドを作ってみた (Qiita)](https://qiita.com/yoshi389111/items/a289f1c470616c5f10c4) — Japanese article explaining this project
 
 ## LICENSE
 
