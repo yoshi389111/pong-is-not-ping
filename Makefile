@@ -27,13 +27,13 @@ all:
 win32:
 	GOOS=windows
 	GOARCH=386
-	go build $(GOFLAGS) -o bin/pong-win-amd64-$(VERSION).exe $(TARGET)
+	go build $(GOFLAGS) -o bin/pong-win-386-$(VERSION).exe $(TARGET)
 .PHONY: win32
 
 win64:
 	GOOS=windows
 	GOARCH=amd64
-	go build $(GOFLAGS) -o bin/pong-win-386-$(VERSION).exe $(TARGET)
+	go build $(GOFLAGS) -o bin/pong-win-amd64-$(VERSION).exe $(TARGET)
 .PHONY: win64
 
 darwin32:
