@@ -14,7 +14,7 @@ pong [OPTIONS] <DESTINATION>
 
 `pong` is a terminal-based game that parodies the classic ping utility. Instead of simply sending ICMP ECHO requests and waiting for replies, you play a Pong-style game with them.
 
-When you run `pong` with a target host specified as `<DESTINATION>`, your local host (displayed on the left edge of the screen) will "send" ICMP ECHO packets as if they were Pong balls. The user controls the paddle on the right side (representing the target host) and must return these packets back to the local host.
+When you run `pong` with a target host specified as `<DESTINATION>`, your local host (displayed on the left edge of the screen) will "send" ICMP ECHO packets as if they were Pong balls. The user controls the paddle on the right side (representing the target host, and can move it using the Up and Down arrow keys) and must return these packets back to the local host.
 
 Between them is the Gateway — a CPU-controlled paddle that always bounces the ICMP ECHO packets back toward the target host. The gateway doesn't understand that it should forward packets; it just reflects them blindly, reducing the TTL each time. You need to avoid the gateway’s deflections and ensure your packets make it back to the local host before their TTL expires (starting at 64 by default, changeable with `-t`).
 
