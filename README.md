@@ -75,8 +75,6 @@ go install github.com/yoshi389111/pong-is-not-ping/cmd/pong@latest
 - [POng is Not pinG. (dev.to)](https://dev.to/yoshi389111/pong-is-not-ping-323d) — English article explaining this project
 - [Go言語でpingコマンドっぽい、でもpingコマンドじゃないpongコマンドを作ってみた (Qiita)](https://qiita.com/yoshi389111/items/a289f1c470616c5f10c4) — Japanese article explaining this project
 
-## LICENSE
+## COPYRIGHT
 
-This software is released under the MIT License.
-
-&copy; 2022 SATO, Yoshiyuki
+&copy; 2022 SATO Yoshiyuki. MIT Licensed.
